@@ -106,7 +106,8 @@ fn main() {
             mode_3d = !mode_3d;
         }
 
-        process_events(&window, &mut player);
+        process_events(&window, &mut player, &maze, BLOCK_SIZE);
+
 
         // ¿el jugador llegó a la meta?
         let i = player.pos.x as usize / BLOCK_SIZE;

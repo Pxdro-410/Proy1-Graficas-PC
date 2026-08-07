@@ -2,14 +2,17 @@ use minifb::{Key, Window};
 use nalgebra_glm::Vec2;
 use std::f32::consts::PI;
 
+use crate::maze::Maze;
+
 pub struct Player {
     pub pos: Vec2,
     pub a: f32,
 }
 
-pub fn process_events(window: &Window, player: &mut Player) {
+pub fn process_events(window: &Window, player: &mut Player, maze: &Maze, block_size: usize) {
     const MOVE_SPEED: f32 = 7.0;
     const ROTATION_SPEED: f32 = PI / 25.0;
+    const PLAYER_RADIUS: f32 = 15.0;
 
     if window.is_key_down(Key::A) {
         player.a -= ROTATION_SPEED;
@@ -19,13 +22,47 @@ pub fn process_events(window: &Window, player: &mut Player) {
         player.a += ROTATION_SPEED;
     }
 
+    let mut dx = 0.0;
+    let mut dy = 0.0;
+
     if window.is_key_down(Key::W) {
-        player.pos.x += MOVE_SPEED * player.a.cos();
-        player.pos.y += MOVE_SPEED * player.a.sin();
+        dx += MOVE_SPEED * player.a.cos();
+        dy += MOVE_SPEED * player.a.sin();
     }
 
     if window.is_key_down(Key::S) {
-        player.pos.x -= MOVE_SPEED * player.a.cos();
-        player.pos.y -= MOVE_SPEED * player.a.sin();
+        dx -= MOVE_SPEED * player.a.cos();
+        dy -= MOVE_SPEED * player.a.sin();
+    }
+
+    // Verificar colisión en el eje X
+    if dx != 0.0 {
+        let new_x = player.pos.x + dx;
+        let test_x = if dx > 0.0 { new_x + PLAYER_RADIUS } else { new_x - PLAYER_RADIUS };
+        let col = (test_x / block_size as f32) as usize;
+        let row = (player.pos.y / block_size as f32) as usize;
+
+        if row < maze.len() && col < maze[row].len() {
+            let cell = maze[row][col];
+            if cell == ' ' || cell == 'g' || cell == 'G' {
+                player.pos.x = new_x;
+            }
+        }
+    }
+
+    // Verificar colisión en el eje Y
+    if dy != 0.0 {
+        let new_y = player.pos.y + dy;
+        let test_y = if dy > 0.0 { new_y + PLAYER_RADIUS } else { new_y - PLAYER_RADIUS };
+        let col = (player.pos.x / block_size as f32) as usize;
+        let row = (test_y / block_size as f32) as usize;
+
+        if row < maze.len() && col < maze[row].len() {
+            let cell = maze[row][col];
+            if cell == ' ' || cell == 'g' || cell == 'G' {
+                player.pos.y = new_y;
+            }
+        }
     }
 }
+

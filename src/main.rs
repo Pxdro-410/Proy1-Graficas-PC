@@ -3,11 +3,11 @@ mod framebuffer;
 mod maze;
 mod player;
 
-use minifb::{Key, Window, WindowOptions};
+use minifb::{Key, KeyRepeat, Window, WindowOptions};
 use std::f32::consts::PI;
 use std::time::Duration;
 
-use crate::caster::cast_ray;
+use crate::caster::{cast_ray, cast_ray_2d};
 use crate::framebuffer::Framebuffer;
 use crate::maze::{load_maze, Maze};
 use crate::player::{process_events, Player};
@@ -44,12 +44,37 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, cell: char) {
     }
 }
 
-fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
-    // Lanza un rayo por cada columna de la pantalla (de 0 a NUM_RAYS-1) para construir la vista 3D
-    for i in 0..NUM_RAYS {
-        let ray_fraction = i as f32 / (NUM_RAYS - 1) as f32; // de 0.0 a 1.0
-        let angle = player.a - FOV / 2.0 + FOV * ray_fraction;
-        cast_ray(framebuffer, maze, player, angle, BLOCK_SIZE, i);
+fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: bool) {
+    if mode_3d {
+        // Vista 3D mediante Raycasting (1 rayo por cada columna de pantalla)
+        for i in 0..NUM_RAYS {
+            let ray_fraction = i as f32 / (NUM_RAYS - 1) as f32; // de 0.0 a 1.0
+            let angle = player.a - FOV / 2.0 + FOV * ray_fraction;
+            cast_ray(framebuffer, maze, player, angle, BLOCK_SIZE, i);
+        }
+    } else {
+        // Vista 2D original (laberinto + jugador + 5 rayos)
+        for (row, line) in maze.iter().enumerate() {
+            for (col, &cell) in line.iter().enumerate() {
+                draw_cell(framebuffer, col * BLOCK_SIZE, row * BLOCK_SIZE, cell);
+            }
+        }
+
+        framebuffer.set_current_color(0xFFFF00);
+        let px = player.pos.x as usize;
+        let py = player.pos.y as usize;
+
+        for x in px.saturating_sub(3)..=px + 3 {
+            for y in py.saturating_sub(3)..=py + 3 {
+                framebuffer.point(x, y);
+            }
+        }
+
+        for i in 0..5 {
+            let ray_fraction = i as f32 / 4.0;
+            let angle = player.a - FOV / 2.0 + FOV * ray_fraction;
+            cast_ray_2d(framebuffer, maze, player, angle, BLOCK_SIZE);
+        }
     }
 }
 
@@ -66,18 +91,24 @@ fn main() {
     framebuffer.set_background_color(0x333355);
 
     let mut window = Window::new(
-        "Maze Runner 3D",
+        "Maze Runner (Presiona 'M' para alternar 2D / 3D)",
         window_width,
         window_height,
         WindowOptions::default(),
     )
     .unwrap();
 
+    let mut mode_3d = true;
+
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        // Alternar entre modo 2D y modo 3D con la tecla M
+        if window.is_key_pressed(Key::M, KeyRepeat::No) {
+            mode_3d = !mode_3d;
+        }
+
         process_events(&window, &mut player);
 
-        // ¿el jugador llegó a la meta? Se traduce su posición en píxeles a la
-        // celda que ocupa y se revisa si esa celda es la marca `g`.
+        // ¿el jugador llegó a la meta?
         let i = player.pos.x as usize / BLOCK_SIZE;
         let j = player.pos.y as usize / BLOCK_SIZE;
         if maze.get(j).and_then(|row| row.get(i)) == Some(&'g') {
@@ -87,7 +118,7 @@ fn main() {
 
         framebuffer.clear();
 
-        render(&mut framebuffer, &maze, &player);
+        render(&mut framebuffer, &maze, &player, mode_3d);
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)

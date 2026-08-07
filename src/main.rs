@@ -14,13 +14,13 @@ use crate::player::{process_events, Player};
 
 const BLOCK_SIZE: usize = 100;
 
-/// Cantidad de rayos que se lanzan en abanico para formar el campo de visión.
-const NUM_RAYS: usize = 5;
+/// Cantidad de rayos, la misma cantidad de columnas que tiene la pantalla.
+const NUM_RAYS: usize = 1300;
 
 /// Amplitud del campo de visión (field of view), en radianes.
 const FOV: f32 = PI / 3.0;
 
-fn cell_color(cell: char) -> u32 {
+pub fn cell_color(cell: char) -> u32 {
     match cell {
         '+' => 0x00AAFF, // columnas
         '-' => 0xFF5555, // paredes horizontales
@@ -45,31 +45,11 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, cell: char) {
 }
 
 fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
-    for (row, line) in maze.iter().enumerate() {
-        for (col, &cell) in line.iter().enumerate() {
-            draw_cell(framebuffer, col * BLOCK_SIZE, row * BLOCK_SIZE, cell);
-        }
-    }
-
-    framebuffer.set_current_color(0xFFFF00);
-    
-    let px = player.pos.x as usize;
-    let py = player.pos.y as usize;
-
-    for x in px.saturating_sub(3)..=px + 3 {
-        for y in py.saturating_sub(3)..=py + 3 {
-            framebuffer.point(x, y);
-        }
-    }
-
-    // lanza un abanico de rayos centrado en la dirección de vista del jugador.
-    // El campo de visión (FOV) se reparte de forma pareja entre los NUM_RAYS
-    // rayos: el primero apunta a `a - FOV/2`, el último a `a + FOV/2` y el del
-    // medio coincide con la dirección de vista.
+    // Lanza un rayo por cada columna de la pantalla (de 0 a NUM_RAYS-1) para construir la vista 3D
     for i in 0..NUM_RAYS {
         let ray_fraction = i as f32 / (NUM_RAYS - 1) as f32; // de 0.0 a 1.0
         let angle = player.a - FOV / 2.0 + FOV * ray_fraction;
-        cast_ray(framebuffer, maze, player, angle, BLOCK_SIZE);
+        cast_ray(framebuffer, maze, player, angle, BLOCK_SIZE, i);
     }
 }
 
@@ -86,7 +66,7 @@ fn main() {
     framebuffer.set_background_color(0x333355);
 
     let mut window = Window::new(
-        "Maze Runner",
+        "Maze Runner 3D",
         window_width,
         window_height,
         WindowOptions::default(),

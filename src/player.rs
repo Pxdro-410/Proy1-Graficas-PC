@@ -1,4 +1,4 @@
-use minifb::{Key, Window};
+use minifb::{Key, MouseMode, Window};
 use nalgebra_glm::Vec2;
 use std::f32::consts::PI;
 
@@ -9,11 +9,30 @@ pub struct Player {
     pub a: f32,
 }
 
-pub fn process_events(window: &Window, player: &mut Player, maze: &Maze, block_size: usize) {
+pub fn process_events(
+    window: &Window,
+    player: &mut Player,
+    maze: &Maze,
+    block_size: usize,
+    last_mouse_x: &mut Option<f32>,
+) {
     const MOVE_SPEED: f32 = 7.0;
     const ROTATION_SPEED: f32 = PI / 25.0;
+    const MOUSE_SENSITIVITY: f32 = 0.003;
     const PLAYER_RADIUS: f32 = 15.0;
 
+    // Rotación horizontal con el mouse
+    if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Pass) {
+        if let Some(prev_x) = *last_mouse_x {
+            let delta_x = mouse_x - prev_x;
+            player.a += delta_x * MOUSE_SENSITIVITY;
+        }
+        *last_mouse_x = Some(mouse_x);
+    } else {
+        *last_mouse_x = None;
+    }
+
+    // Rotación con teclado (A / D)
     if window.is_key_down(Key::A) {
         player.a -= ROTATION_SPEED;
     }
@@ -21,6 +40,7 @@ pub fn process_events(window: &Window, player: &mut Player, maze: &Maze, block_s
     if window.is_key_down(Key::D) {
         player.a += ROTATION_SPEED;
     }
+
 
     let mut dx = 0.0;
     let mut dy = 0.0;

@@ -169,6 +169,7 @@ fn main() {
     let mut last_fps_update = Instant::now();
     let mut frame_count: u32 = 0;
     let mut displayed_fps: f32 = 0.0;
+    let mut last_mouse_x: Option<f32> = None;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // Cálculo y estabilización de FPS
@@ -187,7 +188,8 @@ fn main() {
             mode_3d = !mode_3d;
         }
 
-        process_events(&window, &mut player, &maze, BLOCK_SIZE);
+        process_events(&window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
+
 
         // ¿el jugador llegó a la meta?
         let i = player.pos.x as usize / BLOCK_SIZE;

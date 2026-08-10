@@ -44,6 +44,61 @@ fn draw_cell_2d(framebuffer: &mut Framebuffer, xo: usize, yo: usize, cell: char,
     }
 }
 
+fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
+    let cols = maze[0].len();
+    let rows = maze.len();
+
+    // Tamaño de celda en el minimapa
+    let cell_size = 8;      // 8 pixeles por bloque
+    let map_w = cols * cell_size;
+    let map_h = rows * cell_size;
+
+    let margin = 15;
+    let offset_x = framebuffer.width.saturating_sub(map_w + margin);
+    let offset_y = margin;
+
+    // Fondo oscuro con borde para el minimapa
+    framebuffer.draw_rect(
+        offset_x.saturating_sub(3),
+        offset_y.saturating_sub(3),
+        map_w + 6,
+        map_h + 6,
+        0x11111E,
+    );
+
+    // se dubijan las paredes y meta
+    for (row, line) in maze.iter().enumerate() {
+        for (col, &cell) in line.iter().enumerate() {
+            if cell != ' ' {
+                let color = match cell {
+                    'g' | 'G' => 0x00FF88,
+                    _ => 0x666688,
+                };
+                framebuffer.draw_rect(
+                    offset_x + col * cell_size,
+                    offset_y + row * cell_size,
+                    cell_size,
+                    cell_size,
+                    color,
+                );
+            }
+        }
+    }
+
+    // se dibuja el jugador en el minimapa
+    let scale = cell_size as f32 / BLOCK_SIZE as f32;
+    let px = offset_x + (player.pos.x * scale) as usize;
+    let py = offset_y + (player.pos.y * scale) as usize;
+
+    framebuffer.draw_rect(px.saturating_sub(2), py.saturating_sub(2), 5, 5, 0xFFFF00);
+
+    // Indicador de dirección de mirada del jugador
+    let view_len = 10.0;
+    let vx = (px as f32 + view_len * player.a.cos()) as usize;
+    let vy = (py as f32 + view_len * player.a.sin()) as usize;
+    framebuffer.point(vx, vy);
+}
+
 fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: bool) {
     if mode_3d {
         // Vista 3D mediante Raycasting (1 rayo por cada columna de pantalla)
@@ -52,6 +107,9 @@ fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: 
             let angle = player.a - FOV / 2.0 + FOV * ray_fraction;
             cast_ray(framebuffer, maze, player, angle, BLOCK_SIZE, i);
         }
+
+        // Minimapa en la esquina superior derecha
+        render_minimap(framebuffer, maze, player);
     } else {
         // Vista 2D escalada automáticamente para encajar todo el laberinto en pantalla
         let cols = maze[0].len();
@@ -84,6 +142,7 @@ fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: 
         }
     }
 }
+
 
 
 fn main() {

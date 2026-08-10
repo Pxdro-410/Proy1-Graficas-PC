@@ -188,7 +188,8 @@ fn main() {
             mode_3d = !mode_3d;
         }
 
-        process_events(&window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
+        process_events(&mut window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
+
 
 
         // ¿el jugador llegó a la meta?

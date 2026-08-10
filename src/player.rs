@@ -1,4 +1,5 @@
 use minifb::{Key, MouseMode, Window};
+
 use nalgebra_glm::Vec2;
 use std::f32::consts::PI;
 
@@ -9,19 +10,55 @@ pub struct Player {
     pub a: f32,
 }
 
+#[cfg(target_os = "windows")]
+fn process_mouse_rotation(window: &Window, player: &mut Player) {
+    use winapi::shared::windef::RECT;
+    use winapi::um::winuser::{GetForegroundWindow, GetWindowRect, SetCursorPos, ShowCursor};
+
+
+    unsafe {
+        ShowCursor(0); // Mantener el cursor oculto
+
+        let hwnd = GetForegroundWindow();
+        if !hwnd.is_null() {
+            let mut rect: RECT = std::mem::zeroed();
+            if GetWindowRect(hwnd, &mut rect) != 0 {
+                let center_x = (rect.left + rect.right) / 2;
+                let center_y = (rect.top + rect.bottom) / 2;
+
+                if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Pass) {
+                    let win_width = window.get_size().0 as f32;
+                    let win_center_x = win_width / 2.0;
+
+                    let delta_x = mouse_x - win_center_x;
+                    const MOUSE_SENSITIVITY: f32 = 0.003;
+                    player.a += delta_x * MOUSE_SENSITIVITY;
+
+                    // Re-centrar el ratón en el medio exacto de la ventana para bloquearlo dentro
+                    SetCursorPos(center_x, center_y);
+                }
+            }
+        }
+    }
+}
+
 pub fn process_events(
-    window: &Window,
+    window: &mut Window,
     player: &mut Player,
     maze: &Maze,
     block_size: usize,
-    last_mouse_x: &mut Option<f32>,
+    _last_mouse_x: &mut Option<f32>,
+
 ) {
     const MOVE_SPEED: f32 = 7.0;
     const ROTATION_SPEED: f32 = PI / 25.0;
-    const MOUSE_SENSITIVITY: f32 = 0.003;
     const PLAYER_RADIUS: f32 = 15.0;
 
-    // Rotación horizontal con el mouse
+
+    #[cfg(target_os = "windows")]
+    process_mouse_rotation(window, player);
+
+    #[cfg(not(target_os = "windows"))]
     if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Pass) {
         if let Some(prev_x) = *last_mouse_x {
             let delta_x = mouse_x - prev_x;
@@ -32,6 +69,7 @@ pub fn process_events(
         *last_mouse_x = None;
     }
 
+
     // Rotación con teclado (A / D)
     if window.is_key_down(Key::A) {
         player.a -= ROTATION_SPEED;
@@ -40,6 +78,8 @@ pub fn process_events(
     if window.is_key_down(Key::D) {
         player.a += ROTATION_SPEED;
     }
+
+
 
 
     let mut dx = 0.0;

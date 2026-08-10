@@ -9,16 +9,17 @@ pub fn cast_ray_2d(
     player: &Player,
     a: f32,
     block_size: usize,
+    scale: f32,
 ) {
     let mut d = 0.0;
     framebuffer.set_current_color(0xFFDDDD);
 
     loop {
-        let x = (player.pos.x + d * a.cos()) as usize;
-        let y = (player.pos.y + d * a.sin()) as usize;
+        let world_x = player.pos.x + d * a.cos();
+        let world_y = player.pos.y + d * a.sin();
 
-        let col = x / block_size;
-        let row = y / block_size;
+        let col = (world_x / block_size as f32) as usize;
+        let row = (world_y / block_size as f32) as usize;
 
         if row >= maze.len() || col >= maze[row].len() {
             return;
@@ -28,10 +29,14 @@ pub fn cast_ray_2d(
             return;
         }
 
-        framebuffer.point(x, y);
+        let screen_x = (world_x * scale) as usize;
+        let screen_y = (world_y * scale) as usize;
+
+        framebuffer.point(screen_x, screen_y);
         d += 1.0;
     }
 }
+
 
 pub fn cast_ray(
     framebuffer: &mut Framebuffer,

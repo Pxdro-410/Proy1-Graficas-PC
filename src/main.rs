@@ -17,7 +17,7 @@ const BLOCK_SIZE: usize = 100;
 /// Cantidad de rayos, la misma cantidad de columnas que tiene la pantalla.
 const NUM_RAYS: usize = 1300;
 
-/// Amplitud del campo de visión (field of view), en radianes.
+/// Amplitud del campo de visión o FOV
 const FOV: f32 = PI / 3.0;
 
 pub fn cell_color(cell: char) -> u32 {
@@ -30,15 +30,15 @@ pub fn cell_color(cell: char) -> u32 {
     }
 }
 
-fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, cell: char) {
+fn draw_cell_2d(framebuffer: &mut Framebuffer, xo: usize, yo: usize, cell: char, size: usize) {
     if cell == ' ' {
         return;
     }
 
     framebuffer.set_current_color(cell_color(cell));
 
-    for x in xo..xo + BLOCK_SIZE {
-        for y in yo..yo + BLOCK_SIZE {
+    for x in xo..(xo + size).min(framebuffer.width) {
+        for y in yo..(yo + size).min(framebuffer.height) {
             framebuffer.point(x, y);
         }
     }
@@ -53,16 +53,22 @@ fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: 
             cast_ray(framebuffer, maze, player, angle, BLOCK_SIZE, i);
         }
     } else {
-        // Vista 2D original (laberinto + jugador + 5 rayos)
+        // Vista 2D escalada automáticamente para encajar todo el laberinto en pantalla
+        let cols = maze[0].len();
+        let rows = maze.len();
+        let cell_size_2d = (framebuffer.width / cols).min(framebuffer.height / rows);
+        let scale_2d = cell_size_2d as f32 / BLOCK_SIZE as f32;
+
         for (row, line) in maze.iter().enumerate() {
             for (col, &cell) in line.iter().enumerate() {
-                draw_cell(framebuffer, col * BLOCK_SIZE, row * BLOCK_SIZE, cell);
+                draw_cell_2d(framebuffer, col * cell_size_2d, row * cell_size_2d, cell, cell_size_2d);
             }
         }
 
+        // Jugador en vista 2D
         framebuffer.set_current_color(0xFFFF00);
-        let px = player.pos.x as usize;
-        let py = player.pos.y as usize;
+        let px = (player.pos.x * scale_2d) as usize;
+        let py = (player.pos.y * scale_2d) as usize;
 
         for x in px.saturating_sub(3)..=px + 3 {
             for y in py.saturating_sub(3)..=py + 3 {
@@ -70,13 +76,15 @@ fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: 
             }
         }
 
+        // Abanico de rayos en vista 2D
         for i in 0..5 {
             let ray_fraction = i as f32 / 4.0;
             let angle = player.a - FOV / 2.0 + FOV * ray_fraction;
-            cast_ray_2d(framebuffer, maze, player, angle, BLOCK_SIZE);
+            cast_ray_2d(framebuffer, maze, player, angle, BLOCK_SIZE, scale_2d);
         }
     }
 }
+
 
 fn main() {
     let window_width = 1300;
@@ -104,7 +112,7 @@ fn main() {
     let mut displayed_fps: f32 = 0.0;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        // Cálculo y estabilización de FPS (se promedia y actualiza cada 0.5 segundos)
+        // Cálculo y estabilización de FPS
         frame_count += 1;
         let now = Instant::now();
         let elapsed = now.duration_since(last_fps_update).as_secs_f32();

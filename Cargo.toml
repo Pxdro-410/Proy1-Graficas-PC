@@ -8,3 +8,6 @@ edition = "2024"
 [dependencies]
 nalgebra-glm = "0.18.0"
 minifb = "0.26.0"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser"] }

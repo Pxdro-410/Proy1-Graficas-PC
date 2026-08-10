@@ -197,9 +197,15 @@ fn main() {
             break;
         }
 
-        framebuffer.clear();
+        if mode_3d {
+            framebuffer.clear_sky_and_floor(0x0B0F26, 0x1B3B22);
+        } else {
+            framebuffer.clear();
+        }
+
 
         render(&mut framebuffer, &maze, &player, mode_3d);
+
 
         // Mostrar recuadro e información de FPS directamente sobre el juego (esquina superior izquierda)
         framebuffer.draw_rect(10, 10, 130, 24, 0x11111E);

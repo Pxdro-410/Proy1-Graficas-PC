@@ -4,16 +4,36 @@ pub struct Framebuffer {
     pub buffer: Vec<u32>,
     background_color: u32,
     current_color: u32,
+    stars: Vec<(usize, usize, u32)>,
 }
 
 impl Framebuffer {
     pub fn new(width: usize, height: usize) -> Self {
+        let mut stars = Vec::new();
+        let mut seed: u32 = 987654321;
+        for _ in 0..140 {
+            seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+            let x = (seed as usize) % width;
+            seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+            let y = (seed as usize) % ((height / 2).saturating_sub(10));
+            seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+            let color = match seed % 5 {
+                0 => 0xFFFFFF, // estrella blanca brillante
+                1 => 0xEEEEFF, // azulado brillante
+                2 => 0xCCCCCC, // blanco medio
+                3 => 0x9999BB, // azul tenue
+                _ => 0x777799, // muy tenue
+            };
+            stars.push((x, y, color));
+        }
+
         Framebuffer {
             width,
             height,
             buffer: vec![0; width * height],
             background_color: 0x000000,
             current_color: 0xFFFFFF,
+            stars,
         }
     }
 
@@ -22,6 +42,28 @@ impl Framebuffer {
             *pixel = self.background_color;
         }
     }
+
+    pub fn clear_sky_and_floor(&mut self, sky_color: u32, floor_color: u32) {
+        let half = (self.height / 2) * self.width;
+        let total = self.width * self.height;
+
+        for pixel in self.buffer[..half].iter_mut() {
+            *pixel = sky_color;
+        }
+
+        for pixel in self.buffer[half..total].iter_mut() {
+            *pixel = floor_color;
+        }
+
+        // Pintar estrellas en el cielo nocturno
+        for &(x, y, color) in &self.stars {
+            if y < self.height / 2 && x < self.width {
+                self.buffer[y * self.width + x] = color;
+            }
+        }
+    }
+
+
 
     pub fn point(&mut self, x: usize, y: usize) {
         if x < self.width && y < self.height {

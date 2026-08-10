@@ -5,7 +5,7 @@ mod player;
 
 use minifb::{Key, KeyRepeat, Window, WindowOptions};
 use std::f32::consts::PI;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::caster::{cast_ray, cast_ray_2d};
 use crate::framebuffer::Framebuffer;
@@ -99,15 +99,28 @@ fn main() {
     .unwrap();
 
     let mut mode_3d = true;
+    let mut last_fps_update = Instant::now();
+    let mut frame_count: u32 = 0;
+    let mut displayed_fps: f32 = 0.0;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        // Cálculo y estabilización de FPS (se promedia y actualiza cada 0.5 segundos)
+        frame_count += 1;
+        let now = Instant::now();
+        let elapsed = now.duration_since(last_fps_update).as_secs_f32();
+
+        if elapsed >= 0.8 {
+            displayed_fps = frame_count as f32 / elapsed;
+            frame_count = 0;
+            last_fps_update = now;
+        }
+
         // Alternar entre modo 2D y modo 3D con la tecla M
         if window.is_key_pressed(Key::M, KeyRepeat::No) {
             mode_3d = !mode_3d;
         }
 
         process_events(&window, &mut player, &maze, BLOCK_SIZE);
-
 
         // ¿el jugador llegó a la meta?
         let i = player.pos.x as usize / BLOCK_SIZE;
@@ -121,6 +134,11 @@ fn main() {
 
         render(&mut framebuffer, &maze, &player, mode_3d);
 
+        // Mostrar recuadro e información de FPS directamente sobre el juego (esquina superior izquierda)
+        framebuffer.draw_rect(10, 10, 130, 24, 0x11111E);
+        let fps_str = format!("FPS: {:.1}", displayed_fps);
+        framebuffer.draw_text(15, 15, &fps_str, 0x00FF88);
+
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
@@ -128,3 +146,4 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
+

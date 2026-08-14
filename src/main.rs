@@ -249,6 +249,34 @@ fn render_welcome_menu(framebuffer: &mut Framebuffer) {
     framebuffer.draw_text_scaled(370, 670, "PRESIONA 1, 2 O 3 PARA JUGAR", 2, 0x00FF88);
 }
 
+fn render_crosshair(framebuffer: &mut Framebuffer) {
+    let center_x = framebuffer.width / 2;
+    let center_y = framebuffer.height / 2;
+
+    let arm_length = 8;
+    let gap = 4;
+
+    // Borde oscuro para alto contraste sobre cualquier fondo
+    for i in (gap - 1)..=(arm_length + gap) {
+        framebuffer.draw_rect(center_x.saturating_sub(i + 1), center_y - 1, 3, 3, 0x000000);
+        framebuffer.draw_rect(center_x + i - 1, center_y - 1, 3, 3, 0x000000);
+        framebuffer.draw_rect(center_x - 1, center_y.saturating_sub(i + 1), 3, 3, 0x000000);
+        framebuffer.draw_rect(center_x - 1, center_y + i - 1, 3, 3, 0x000000);
+    }
+    framebuffer.draw_rect(center_x - 2, center_y - 2, 5, 5, 0x000000);
+
+    // color de la reticula
+    for i in gap..=(arm_length + gap) {
+        framebuffer.draw_rect(center_x.saturating_sub(i), center_y, 1, 1, 0xFFFFFF);
+        framebuffer.draw_rect(center_x + i, center_y, 1, 1, 0xFFFFFF);
+        framebuffer.draw_rect(center_x, center_y.saturating_sub(i), 1, 1, 0xFFFFFF);
+        framebuffer.draw_rect(center_x, center_y + i, 1, 1, 0xFFFFFF);
+    }
+
+    // Punto central
+    framebuffer.draw_rect(center_x - 1, center_y - 1, 3, 3, 0x00FF88);
+}
+
 fn render_victory_screen(framebuffer: &mut Framebuffer) {
     framebuffer.clear_sky_and_floor(0x0B0F26, 0x11111E);
 
@@ -257,6 +285,7 @@ fn render_victory_screen(framebuffer: &mut Framebuffer) {
 
     framebuffer.draw_text_scaled(310, 560, "PRESIONA ENTER PARA VOLVER AL MENU", 2, 0xFFFFFF);
 }
+
 
 fn main() {
     let window_width = 1300;
@@ -344,7 +373,7 @@ fn main() {
 
                 // Disparar el arma con clic izquierdo
                 if window.get_mouse_down(MouseButton::Left) {
-                    weapon.shoot("./assets/lmg_fire01.mp3");
+                    weapon.shoot("./assets/gun_shot.mp3");
                 }
 
                 weapon.update();
@@ -366,10 +395,13 @@ fn main() {
 
                 render(&mut framebuffer, &maze, &player, mode_3d, &wall_texture);
 
-                // Dibujar el arma centrada en primera persona en vista 3D
+                // Dibujar el arma y la retícula de mira en 3D
                 if mode_3d {
                     weapon.draw(&mut framebuffer);
+                    render_crosshair(&mut framebuffer);
                 }
+
+
 
 
 

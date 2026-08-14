@@ -152,6 +152,38 @@ fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: 
 
 
 
+#[derive(PartialEq)]
+enum GameState {
+    WelcomeMenu,
+    Playing,
+    Victory,
+}
+
+fn render_welcome_menu(framebuffer: &mut Framebuffer) {
+    framebuffer.clear_sky_and_floor(0x0B0F26, 0x11111E);
+
+    // Título Principal
+    framebuffer.draw_text_scaled(380, 180, "RAYCASTING - PC", 4, 0x00FFFF);
+    framebuffer.draw_text_scaled(420, 290, "SELECCIONA UN NIVEL", 3, 0xFFD700);
+
+    // Opciones de nivel
+    framebuffer.draw_text_scaled(450, 400, "1 - Elegir nivel 1", 3, 0xFFFFFF);
+    framebuffer.draw_text_scaled(450, 470, "2 - Elegir nivel 2", 3, 0xFFFFFF);
+    framebuffer.draw_text_scaled(450, 540, "3 - Elegir nivel 3", 3, 0xFFFFFF);
+
+    // instruccion de inicio
+    framebuffer.draw_text_scaled(370, 670, "PRESIONA 1, 2 O 3 PARA JUGAR", 2, 0x00FF88);
+}
+
+fn render_victory_screen(framebuffer: &mut Framebuffer) {
+    framebuffer.clear_sky_and_floor(0x0B0F26, 0x11111E);
+
+    framebuffer.draw_text_scaled(380, 240, "FELICITACIONES!", 4, 0x00FF88);
+    framebuffer.draw_text_scaled(380, 360, "META ALCANZADA!", 4, 0xFFD700);
+
+    framebuffer.draw_text_scaled(310, 560, "PRESIONA ENTER PARA VOLVER AL MENU", 2, 0xFFFFFF);
+}
+
 fn main() {
     let window_width = 1300;
     let window_height = 900;
@@ -159,24 +191,29 @@ fn main() {
     let framebuffer_height = 900;
     let target_frame_duration = Duration::from_micros(22222); // para 45 fps estables
 
-    let (maze, mut player) = load_maze("./maze.txt", BLOCK_SIZE);
-
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     framebuffer.set_background_color(0x333355);
 
     let mut window = Window::new(
-        "Maze Runner (Presiona 'M' para alternar 2D / 3D)",
+        "Maze Runner 3D",
         window_width,
         window_height,
         WindowOptions::default(),
     )
     .unwrap();
 
+    let mut state = GameState::WelcomeMenu;
     let mut mode_3d = true;
     let mut last_fps_update = Instant::now();
     let mut frame_count: u32 = 0;
     let mut displayed_fps: f32 = 0.0;
     let mut last_mouse_x: Option<f32> = None;
+
+    let mut maze: Maze = Vec::new();
+    let mut player = Player {
+        pos: nalgebra_glm::Vec2::new(0.0, 0.0),
+        a: 0.0,
+    };
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_start = Instant::now();
@@ -192,44 +229,75 @@ fn main() {
             last_fps_update = now;
         }
 
-        // Alternar entre modo 2D y modo 3D con la tecla M
-        if window.is_key_pressed(Key::M, KeyRepeat::No) {
-            mode_3d = !mode_3d;
+        match state {
+            GameState::WelcomeMenu => {
+                if window.is_key_pressed(Key::Key1, KeyRepeat::No) || window.is_key_pressed(Key::NumPad1, KeyRepeat::No) {
+                    let loaded = load_maze("./maze.txt", BLOCK_SIZE);
+                    maze = loaded.0;
+                    player = loaded.1;
+                    state = GameState::Playing;
+                } else if window.is_key_pressed(Key::Key2, KeyRepeat::No) || window.is_key_pressed(Key::NumPad2, KeyRepeat::No) {
+                    let loaded = load_maze("./maze2.txt", BLOCK_SIZE);
+                    maze = loaded.0;
+                    player = loaded.1;
+                    state = GameState::Playing;
+                } else if window.is_key_pressed(Key::Key3, KeyRepeat::No) || window.is_key_pressed(Key::NumPad3, KeyRepeat::No) {
+                    let loaded = load_maze("./maze3.txt", BLOCK_SIZE);
+                    maze = loaded.0;
+                    player = loaded.1;
+                    state = GameState::Playing;
+                }
+
+                render_welcome_menu(&mut framebuffer);
+            }
+            GameState::Playing => {
+                // Alternar entre modo 2D y modo 3D con la tecla M
+                if window.is_key_pressed(Key::M, KeyRepeat::No) {
+                    mode_3d = !mode_3d;
+                }
+
+                process_events(&mut window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
+
+                // Verificar si se llegó a la meta
+                let i = player.pos.x as usize / BLOCK_SIZE;
+                let j = player.pos.y as usize / BLOCK_SIZE;
+                if maze.get(j).and_then(|row| row.get(i)) == Some(&'g') {
+                    state = GameState::Victory;
+                }
+
+                if mode_3d {
+                    framebuffer.clear_sky_and_floor(0x0B0F26, 0x1B3B22);
+                } else {
+                    framebuffer.clear();
+                }
+
+                render(&mut framebuffer, &maze, &player, mode_3d);
+
+                // Mostrar recuadro e información de FPS directamente sobre el juego
+                framebuffer.draw_rect(10, 10, 130, 24, 0x11111E);
+                let fps_str = format!("FPS: {:.1}", displayed_fps);
+                framebuffer.draw_text(15, 15, &fps_str, 0x00FF88);
+            }
+            GameState::Victory => {
+                if window.is_key_pressed(Key::Enter, KeyRepeat::No) || window.is_key_pressed(Key::Space, KeyRepeat::No) {
+                    state = GameState::WelcomeMenu;
+                }
+
+                render_victory_screen(&mut framebuffer);
+            }
         }
-
-        process_events(&mut window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
-
-        // ¿el jugador llegó a la meta?
-        let i = player.pos.x as usize / BLOCK_SIZE;
-        let j = player.pos.y as usize / BLOCK_SIZE;
-        if maze.get(j).and_then(|row| row.get(i)) == Some(&'g') {
-            println!("¡Meta alcanzada! Fin del juego.");
-            break;
-        }
-
-        if mode_3d {
-            framebuffer.clear_sky_and_floor(0x0B0F26, 0x1B3B22);
-        } else {
-            framebuffer.clear();
-        }
-
-        render(&mut framebuffer, &maze, &player, mode_3d);
-
-        // Mostrar recuadro e información de FPS directamente sobre el juego (esquina superior izquierda)
-        framebuffer.draw_rect(10, 10, 130, 24, 0x11111E);
-        let fps_str = format!("FPS: {:.1}", displayed_fps);
-        framebuffer.draw_text(15, 15, &fps_str, 0x00FF88);
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
 
-        // Pausa dinámica: dormir únicamente el tiempo restante para cumplir el objetivo de 60 FPS
+        // Pausa dinámica para FPS estables
         let work_duration = frame_start.elapsed();
         if work_duration < target_frame_duration {
             std::thread::sleep(target_frame_duration - work_duration);
         }
     }
 }
+
 
 

@@ -36,19 +36,62 @@ pub fn cell_color(cell: char) -> u32 {
     }
 }
 
-fn draw_cell_2d(framebuffer: &mut Framebuffer, xo: usize, yo: usize, cell: char, size: usize) {
+fn draw_cell_2d(
+    framebuffer: &mut Framebuffer,
+    xo: usize,
+    yo: usize,
+    cell: char,
+    size: usize,
+    wall_texture: &Texture,
+) {
+    let floor_color = 0x1B3B22; // Color de grama nocturna del piso en 3D
+
     if cell == ' ' {
+        // Suelo del mapa en 2D con el mismo color verde grama que en 3D
+        for x in xo..(xo + size).min(framebuffer.width) {
+            for y in yo..(yo + size).min(framebuffer.height) {
+                framebuffer.set_current_color(floor_color);
+                framebuffer.point(x, y);
+            }
+        }
         return;
     }
 
-    framebuffer.set_current_color(cell_color(cell));
+    if cell == 'g' || cell == 'G' {
+        // Meta verde brillante
+        for x in xo..(xo + size).min(framebuffer.width) {
+            for y in yo..(yo + size).min(framebuffer.height) {
+                framebuffer.set_current_color(0x00FF88);
+                framebuffer.point(x, y);
+            }
+        }
+        return;
+    }
 
-    for x in xo..(xo + size).min(framebuffer.width) {
-        for y in yo..(yo + size).min(framebuffer.height) {
-            framebuffer.point(x, y);
+    // Paredes del mapa en 2D renderizadas con la textura PNG real
+    for x in 0..size {
+        let screen_x = xo + x;
+        if screen_x >= framebuffer.width {
+            continue;
+        }
+
+        let tx = ((x as f32 / size as f32) * wall_texture.width as f32) as u32;
+
+        for y in 0..size {
+            let screen_y = yo + y;
+            if screen_y >= framebuffer.height {
+                continue;
+            }
+
+            let ty = ((y as f32 / size as f32) * wall_texture.height as f32) as u32;
+            let color = wall_texture.get_pixel(tx, ty);
+
+            framebuffer.set_current_color(color);
+            framebuffer.point(screen_x, screen_y);
         }
     }
 }
+
 
 fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
     let cols = maze[0].len();
@@ -149,9 +192,17 @@ fn render(
 
         for (row, line) in maze.iter().enumerate() {
             for (col, &cell) in line.iter().enumerate() {
-                draw_cell_2d(framebuffer, col * cell_size_2d, row * cell_size_2d, cell, cell_size_2d);
+                draw_cell_2d(
+                    framebuffer,
+                    col * cell_size_2d,
+                    row * cell_size_2d,
+                    cell,
+                    cell_size_2d,
+                    wall_texture,
+                );
             }
         }
+
 
         // Jugador en vista 2D
         framebuffer.set_current_color(0xFFFF00);

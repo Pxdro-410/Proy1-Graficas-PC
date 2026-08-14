@@ -3,8 +3,9 @@ mod framebuffer;
 mod maze;
 mod player;
 mod texture;
+mod weapon;
 
-use minifb::{Key, KeyRepeat, Window, WindowOptions};
+use minifb::{Key, KeyRepeat, MouseButton, Window, WindowOptions};
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 
@@ -13,6 +14,8 @@ use crate::framebuffer::Framebuffer;
 use crate::maze::{load_maze, Maze};
 use crate::player::{process_events, Player};
 use crate::texture::Texture;
+use crate::weapon::Weapon;
+
 
 
 const BLOCK_SIZE: usize = 100;
@@ -224,8 +227,15 @@ fn main() {
 
     let wall_texture = Texture::load("./assets/wall.png").unwrap_or_else(|e| {
         eprintln!("Aviso: {}", e);
-        Texture { width: 1, height: 1, pixels: vec![0xFF5555] }
+        Texture {
+            width: 1,
+            height: 1,
+            pixels: vec![0xFF5555],
+        }
+
     });
+
+    let mut weapon = Weapon::new();
 
     let mut state = GameState::WelcomeMenu;
     let mut mode_3d = true;
@@ -281,6 +291,13 @@ fn main() {
                     mode_3d = !mode_3d;
                 }
 
+                // Disparar el arma con clic izquierdo
+                if window.get_mouse_down(MouseButton::Left) {
+                    weapon.shoot("./assets/lmg_fire01.mp3");
+                }
+
+                weapon.update();
+
                 process_events(&mut window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
 
                 // Verificar si se llegó a la meta
@@ -297,6 +314,13 @@ fn main() {
                 }
 
                 render(&mut framebuffer, &maze, &player, mode_3d, &wall_texture);
+
+                // Dibujar el arma centrada en primera persona en vista 3D
+                if mode_3d {
+                    weapon.draw(&mut framebuffer);
+                }
+
+
 
 
                 // Mostrar recuadro e información de FPS directamente sobre el juego

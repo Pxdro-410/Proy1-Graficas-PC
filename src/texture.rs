@@ -21,7 +21,11 @@ impl Texture {
             }
         }
 
-        Ok(Texture { width, height, pixels })
+        Ok(Texture {
+            width,
+            height,
+            pixels,
+        })
     }
 
     pub fn get_pixel(&self, x: u32, y: u32) -> u32 {

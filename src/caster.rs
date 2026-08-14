@@ -50,7 +50,7 @@ pub fn cast_ray(
     d_plane: f32,
     wall_texture: &Texture,
     door_texture: &Texture,
-) {
+) -> f32 {
     let mut d = 0.0;
 
     loop {
@@ -61,7 +61,7 @@ pub fn cast_ray(
         let row = (world_y / block_size as f32) as usize;
 
         if row >= maze.len() || col >= maze[row].len() {
-            return;
+            return 10000.0;
         }
 
         if maze[row][col] != ' ' {
@@ -78,7 +78,7 @@ pub fn cast_ray(
             let draw_start = (draw_start_f.max(0.0)) as usize;
             let draw_end = (((h / 2.0) + (wall_height / 2.0)).min(h)) as usize;
 
-            // Seleccionar textura: 'g' o 'G' usa door_texture, el resto usa wall_texture
+            // 'g' o 'G' usa door_texture, el resto usa wall_texture
             let tex = if cell == 'g' || cell == 'G' {
                 door_texture
             } else {
@@ -106,12 +106,13 @@ pub fn cast_ray(
                 framebuffer.set_current_color(color);
                 framebuffer.point(i, y_pix);
             }
-            return;
+            return distance;
         }
 
         d += 1.0;
     }
 }
+
 
 
 

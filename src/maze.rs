@@ -37,11 +37,10 @@ pub fn load_maze(filename: &str, block_size: usize) -> (Maze, Player) {
         maze.push(cells);
     }
 
-    let player = Player {
-        pos: player_pos.unwrap_or_else(|| Vec2::new(0.0, 0.0)),
-        // ángulo de vista inicial; el jugador podrá girarlo con el teclado.
-        a: PI / 3.0,
-    };
+    let initial_pos = player_pos.unwrap_or_else(|| Vec2::new(0.0, 0.0));
+    let mut player = Player::new(initial_pos.x, initial_pos.y);
+    player.a = PI / 3.0;
 
     (maze, player)
+
 }

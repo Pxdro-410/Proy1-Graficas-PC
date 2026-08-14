@@ -8,7 +8,25 @@ use crate::maze::Maze;
 pub struct Player {
     pub pos: Vec2,
     pub a: f32,
+    pub hp: i32,
+    pub max_hp: i32,
 }
+
+impl Player {
+    pub fn new(x: f32, y: f32) -> Self {
+        Player {
+            pos: Vec2::new(x, y),
+            a: 0.0,
+            hp: 100,
+            max_hp: 100,
+        }
+    }
+
+    pub fn take_damage(&mut self, damage: i32) {
+        self.hp = (self.hp - damage).max(0);
+    }
+}
+
 
 #[cfg(target_os = "windows")]
 fn process_mouse_rotation(window: &Window, player: &mut Player) {

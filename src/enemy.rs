@@ -183,20 +183,26 @@ pub fn render_enemies(
         while norm_angle > std::f32::consts::PI { norm_angle -= 2.0 * std::f32::consts::PI; }
         while norm_angle < -std::f32::consts::PI { norm_angle += 2.0 * std::f32::consts::PI; }
 
-        let distance = (dx * dx + dy * dy).sqrt() * norm_angle.cos();
-        if distance < 12.0 {
+        let raw_dist = (dx * dx + dy * dy).sqrt() * norm_angle.cos();
+        if raw_dist < 15.0 {
             continue;
         }
 
+        let distance = raw_dist.max(25.0);
+
         let screen_x_center = (framebuffer.width as f32 / 2.0) + (norm_angle.tan() * d_plane);
         
-        // Escalar tamaño a proporción adecuada de 65%
-        let sprite_size = (65.0 / distance) * d_plane;
+        // Limitar el tamaño al 65% para evitar gigantismo
+        let raw_sprite_size = (65.0 / distance) * d_plane;
+        let max_sprite_size = framebuffer.height as f32 * 0.70;
+        let sprite_size = raw_sprite_size.min(max_sprite_size);
+
         let sprite_w = sprite_size as usize;
         let sprite_h = sprite_size as usize;
 
         let start_x = (screen_x_center - sprite_size / 2.0) as isize;
         let start_y = (framebuffer.height as f32 / 2.0 - sprite_size / 4.0) as isize;
+
 
         for x in 0..sprite_w {
             let screen_x = start_x + x as isize;

@@ -419,7 +419,8 @@ fn main() {
 
                 weapon.update();
 
-                process_events(&mut window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
+                process_events(&mut window, &mut player, &maze, &enemies, BLOCK_SIZE, &mut last_mouse_x);
+
 
                 // Si el jugador pierde toda la vida es game over
                 if player.hp <= 0 {

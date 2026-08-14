@@ -157,7 +157,7 @@ fn main() {
     let window_height = 900;
     let framebuffer_width = 1300;
     let framebuffer_height = 900;
-    let frame_delay = Duration::from_millis(16);
+    let target_frame_duration = Duration::from_micros(22222); // para 45 fps estables
 
     let (maze, mut player) = load_maze("./maze.txt", BLOCK_SIZE);
 
@@ -179,6 +179,8 @@ fn main() {
     let mut last_mouse_x: Option<f32> = None;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        let frame_start = Instant::now();
+
         // Cálculo y estabilización de FPS
         frame_count += 1;
         let now = Instant::now();
@@ -197,8 +199,6 @@ fn main() {
 
         process_events(&mut window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
 
-
-
         // ¿el jugador llegó a la meta?
         let i = player.pos.x as usize / BLOCK_SIZE;
         let j = player.pos.y as usize / BLOCK_SIZE;
@@ -213,9 +213,7 @@ fn main() {
             framebuffer.clear();
         }
 
-
         render(&mut framebuffer, &maze, &player, mode_3d);
-
 
         // Mostrar recuadro e información de FPS directamente sobre el juego (esquina superior izquierda)
         framebuffer.draw_rect(10, 10, 130, 24, 0x11111E);
@@ -226,7 +224,12 @@ fn main() {
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
 
-        std::thread::sleep(frame_delay);
+        // Pausa dinámica: dormir únicamente el tiempo restante para cumplir el objetivo de 60 FPS
+        let work_duration = frame_start.elapsed();
+        if work_duration < target_frame_duration {
+            std::thread::sleep(target_frame_duration - work_duration);
+        }
     }
 }
+
 

@@ -31,8 +31,9 @@ fn process_mouse_rotation(window: &Window, player: &mut Player) {
                     let win_center_x = win_width / 2.0;
 
                     let delta_x = mouse_x - win_center_x;
-                    const MOUSE_SENSITIVITY: f32 = 0.003;
+                    const MOUSE_SENSITIVITY: f32 = 0.00055;
                     player.a += delta_x * MOUSE_SENSITIVITY;
+
 
                     // Re-centrar el ratón en el medio exacto de la ventana para bloquearlo dentro
                     SetCursorPos(center_x, center_y);

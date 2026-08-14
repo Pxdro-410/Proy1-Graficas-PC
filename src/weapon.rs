@@ -1,4 +1,4 @@
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;
 
@@ -7,6 +7,7 @@ use crate::framebuffer::Framebuffer;
 pub struct SoundSystem {
     _stream: Option<OutputStream>,
     stream_handle: Option<OutputStreamHandle>,
+    bgm_sink: Option<Sink>,
 }
 
 impl SoundSystem {
@@ -15,11 +16,13 @@ impl SoundSystem {
             SoundSystem {
                 _stream: Some(stream),
                 stream_handle: Some(handle),
+                bgm_sink: None,
             }
         } else {
             SoundSystem {
                 _stream: None,
                 stream_handle: None,
+                bgm_sink: None,
             }
         }
     }
@@ -29,8 +32,27 @@ impl SoundSystem {
             if let Ok(file) = File::open(path) {
                 if let Ok(source) = Decoder::new(BufReader::new(file)) {
                     if let Ok(sink) = Sink::try_new(handle) {
+                        sink.set_volume(0.6);
                         sink.append(source);
                         sink.detach();
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn start_bgm_loop(&mut self, path: &str, volume: f32) {
+        if self.bgm_sink.is_some() {
+            return;
+        }
+
+        if let Some(ref handle) = self.stream_handle {
+            if let Ok(file) = File::open(path) {
+                if let Ok(source) = Decoder::new(BufReader::new(file)) {
+                    if let Ok(sink) = Sink::try_new(handle) {
+                        sink.set_volume(volume); // Volumen moderado
+                        sink.append(source.repeat_infinite()); // Bucle continuo
+                        self.bgm_sink = Some(sink);
                     }
                 }
             }
@@ -46,13 +68,16 @@ pub struct Weapon {
 
 impl Weapon {
     pub fn new() -> Self {
-        let sound_system = SoundSystem::new();
+        let mut sound_system = SoundSystem::new();
+        // musica al 25%
+        sound_system.start_bgm_loop("./assets/music.mp3", 0.25);
         Weapon {
             is_firing: false,
             fire_frame: 0,
             sound_system,
         }
     }
+
 
     pub fn shoot(&mut self, sound_path: &str) {
         if !self.is_firing {
@@ -89,7 +114,7 @@ impl Weapon {
 
         let gun_top = base_y.saturating_sub(230).saturating_add(recoil_y);
 
-        // 1. Cuerpo del arma (cañón centrado en primera persona estilo Doom / Wolfenstein 3D)
+        // arma centrada
         let barrel_width_bottom = 140;
         let barrel_width_top = 46;
 
@@ -118,7 +143,7 @@ impl Weapon {
             }
         }
 
-        // 2. Boquilla reforzada del cañón
+        // Boquilla reforzada del cañón
         let muzzle_y_start = gun_top.saturating_sub(18);
         let muzzle_width = 52;
         for y in muzzle_y_start..gun_top {
@@ -131,11 +156,11 @@ impl Weapon {
             }
         }
 
-        // 3. Fogonazo de disparo (Muzzle Flash) al hacer clic izquierdo
+        // Fogonazo de disparo al hacer clic izquierdo
         if self.is_firing && self.fire_frame < 4 {
             let flash_center_y = muzzle_y_start.saturating_sub(30);
 
-            // Capas del fogonazo (núcleo blanco, halo amarillo/naranja)
+            // Capas del fogonazo
             framebuffer.draw_rect(center_x.saturating_sub(40), flash_center_y.saturating_sub(40), 80, 80, 0xFFCC00);
             framebuffer.draw_rect(center_x.saturating_sub(24), flash_center_y.saturating_sub(24), 48, 48, 0xFFEEAA);
             framebuffer.draw_rect(center_x.saturating_sub(12), flash_center_y.saturating_sub(12), 24, 24, 0xFFFFFF);

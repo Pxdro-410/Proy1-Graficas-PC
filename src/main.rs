@@ -1,4 +1,5 @@
 mod caster;
+mod enemy;
 mod framebuffer;
 mod maze;
 mod player;
@@ -10,6 +11,8 @@ use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 
 use crate::caster::{cast_ray, cast_ray_2d};
+use crate::enemy::{check_player_shot_hit, render_enemies, spawn_enemies_from_maze, Enemy};
+
 use crate::framebuffer::Framebuffer;
 use crate::maze::{load_maze, Maze};
 use crate::player::{process_events, Player};
@@ -18,10 +21,11 @@ use crate::weapon::Weapon;
 
 
 
+
 const BLOCK_SIZE: usize = 100;
 
 /// Cantidad de rayos, la misma cantidad de columnas que tiene la pantalla.
-const NUM_RAYS: usize = 1300;
+const NUM_RAYS: usize = 1200;
 
 /// Amplitud del campo de visión o FOV
 const FOV: f32 = PI / 3.0;
@@ -89,8 +93,6 @@ fn draw_cell_2d(
     }
 }
 
-
-
 fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
     let cols = maze[0].len();
     let rows = maze.len();
@@ -113,7 +115,7 @@ fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
         0x11111E,
     );
 
-    // se dubijan las paredes y meta
+    // se dibujan las paredes y meta
     for (row, line) in maze.iter().enumerate() {
         for (col, &cell) in line.iter().enumerate() {
             if cell != ' ' {
@@ -153,11 +155,14 @@ fn render(
     mode_3d: bool,
     wall_texture: &Texture,
     door_texture: &Texture,
+    enemies: &[Enemy],
+    enemy_texture: Option<&Texture>,
 ) {
     if mode_3d {
         let width = framebuffer.width as f32;
         // Distancia exacta al plano de proyección para un campo de visión plano (sin deformaciones)
         let d_plane = (width / 2.0) / (FOV / 2.0).tan();
+        let mut z_buffer = vec![10000.0f32; NUM_RAYS];
 
         // Vista 3D mediante Raycasting (1 rayo por cada columna de pantalla)
         for i in 0..NUM_RAYS {
@@ -165,7 +170,7 @@ fn render(
             let beta = (screen_x / d_plane).atan();
             let angle = player.a + beta;
 
-            cast_ray(
+            let dist = cast_ray(
                 framebuffer,
                 maze,
                 player,
@@ -177,13 +182,15 @@ fn render(
                 wall_texture,
                 door_texture,
             );
+            z_buffer[i] = dist;
         }
+
+        // Renderizado de enemigos 3D con Billboarding y Z-Buffer
+        render_enemies(framebuffer, enemies, player, d_plane, &z_buffer, enemy_texture);
 
         // Minimapa en la esquina superior derecha
         render_minimap(framebuffer, maze, player);
     } else {
-
-
         // Vista 2D escalada automáticamente para encajar todo el laberinto en pantalla
         let cols = maze[0].len();
         let rows = maze.len();
@@ -203,8 +210,6 @@ fn render(
                 );
             }
         }
-
-
 
         // Jugador en vista 2D
         framebuffer.set_current_color(0xFFFF00);
@@ -226,29 +231,30 @@ fn render(
     }
 }
 
-
-
 #[derive(PartialEq)]
 enum GameState {
     WelcomeMenu,
     Playing,
     Victory,
+    GameOver,
 }
 
 fn render_welcome_menu(framebuffer: &mut Framebuffer) {
     framebuffer.clear_sky_and_floor(0x0B0F26, 0x11111E);
 
+    let center_x = framebuffer.width / 2;
+
     // Título Principal
-    framebuffer.draw_text_scaled(380, 180, "RAYCASTING - PC", 4, 0x00FFFF);
-    framebuffer.draw_text_scaled(420, 290, "SELECCIONA UN NIVEL", 3, 0xFFD700);
+    framebuffer.draw_text_scaled(center_x.saturating_sub(220), 100, "RAYCASTING - PC", 4, 0x00FFFF);
+    framebuffer.draw_text_scaled(center_x.saturating_sub(180), 200, "SELECCIONA UN NIVEL", 3, 0xFFD700);
 
     // Opciones de nivel
-    framebuffer.draw_text_scaled(450, 400, "1 - Elegir nivel 1", 3, 0xFFFFFF);
-    framebuffer.draw_text_scaled(450, 470, "2 - Elegir nivel 2", 3, 0xFFFFFF);
-    framebuffer.draw_text_scaled(450, 540, "3 - Elegir nivel 3", 3, 0xFFFFFF);
+    framebuffer.draw_text_scaled(center_x.saturating_sub(160), 300, "1 - Elegir nivel 1", 3, 0xFFFFFF);
+    framebuffer.draw_text_scaled(center_x.saturating_sub(160), 370, "2 - Elegir nivel 2", 3, 0xFFFFFF);
+    framebuffer.draw_text_scaled(center_x.saturating_sub(160), 440, "3 - Elegir nivel 3", 3, 0xFFFFFF);
 
-    // instruccion de inicio
-    framebuffer.draw_text_scaled(370, 670, "PRESIONA 1, 2 O 3 PARA JUGAR", 2, 0x00FF88);
+    // Instrucción de inicio
+    framebuffer.draw_text_scaled(center_x.saturating_sub(200), 550, "PRESIONA 1, 2 O 3 PARA JUGAR", 2, 0x00FF88);
 }
 
 fn render_crosshair(framebuffer: &mut Framebuffer) {
@@ -267,7 +273,7 @@ fn render_crosshair(framebuffer: &mut Framebuffer) {
     }
     framebuffer.draw_rect(center_x - 2, center_y - 2, 5, 5, 0x000000);
 
-    // color de la reticula
+    // Color de la retícula
     for i in gap..=(arm_length + gap) {
         framebuffer.draw_rect(center_x.saturating_sub(i), center_y, 1, 1, 0xFFFFFF);
         framebuffer.draw_rect(center_x + i, center_y, 1, 1, 0xFFFFFF);
@@ -282,18 +288,26 @@ fn render_crosshair(framebuffer: &mut Framebuffer) {
 fn render_victory_screen(framebuffer: &mut Framebuffer) {
     framebuffer.clear_sky_and_floor(0x0B0F26, 0x11111E);
 
-    framebuffer.draw_text_scaled(380, 240, "FELICITACIONES!", 4, 0x00FF88);
-    framebuffer.draw_text_scaled(380, 360, "META ALCANZADA!", 4, 0xFFD700);
+    let center_x = framebuffer.width / 2;
+    framebuffer.draw_text_scaled(center_x.saturating_sub(210), 160, "FELICITACIONES!", 4, 0x00FF88);
+    framebuffer.draw_text_scaled(center_x.saturating_sub(210), 260, "META ALCANZADA!", 4, 0xFFD700);
 
-    framebuffer.draw_text_scaled(310, 560, "PRESIONA ENTER PARA VOLVER AL MENU", 2, 0xFFFFFF);
+    framebuffer.draw_text_scaled(center_x.saturating_sub(260), 450, "PRESIONA ENTER PARA VOLVER AL MENU", 2, 0xFFFFFF);
 }
 
+fn render_game_over_screen(framebuffer: &mut Framebuffer) {
+    framebuffer.clear_sky_and_floor(0x200505, 0x050000);
+
+    let center_x = framebuffer.width / 2;
+    framebuffer.draw_text_scaled(center_x.saturating_sub(160), 180, "HAS MUERTO!", 4, 0xFF2222);
+    framebuffer.draw_text_scaled(center_x.saturating_sub(260), 420, "PRESIONA ENTER PARA VOLVER AL MENU", 2, 0xFFFFFF);
+}
 
 fn main() {
-    let window_width = 1300;
-    let window_height = 900;
-    let framebuffer_width = 1300;
-    let framebuffer_height = 900;
+    let window_width = 1200;
+    let window_height = 680;
+    let framebuffer_width = 1200;
+    let framebuffer_height = 680;
     let target_frame_duration = Duration::from_micros(22222); // para 45 fps estables
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
@@ -307,12 +321,14 @@ fn main() {
     )
     .unwrap();
 
+
     let wall_texture = Texture::load("./assets/wall.png").unwrap_or_else(|e| {
         eprintln!("Aviso: {}", e);
         Texture {
             width: 1,
             height: 1,
             pixels: vec![0xFF5555],
+            alpha: vec![255],
         }
     });
 
@@ -322,8 +338,14 @@ fn main() {
             width: 1,
             height: 1,
             pixels: vec![0x00FF88],
+            alpha: vec![255],
         }
     });
+
+
+    let enemy_texture = Texture::load("./assets/enemies.png").ok();
+
+
 
     let mut weapon = Weapon::new();
 
@@ -335,10 +357,8 @@ fn main() {
     let mut last_mouse_x: Option<f32> = None;
 
     let mut maze: Maze = Vec::new();
-    let mut player = Player {
-        pos: nalgebra_glm::Vec2::new(0.0, 0.0),
-        a: 0.0,
-    };
+    let mut player = Player::new(0.0, 0.0);
+    let mut enemies: Vec<Enemy> = Vec::new();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_start = Instant::now();
@@ -359,36 +379,52 @@ fn main() {
                 if window.is_key_pressed(Key::Key1, KeyRepeat::No) || window.is_key_pressed(Key::NumPad1, KeyRepeat::No) {
                     let loaded = load_maze("./maze.txt", BLOCK_SIZE);
                     maze = loaded.0;
-                    player = loaded.1;
+                    player = Player::new(loaded.1.pos.x, loaded.1.pos.y);
+                    enemies = spawn_enemies_from_maze(&mut maze, BLOCK_SIZE);
                     state = GameState::Playing;
                 } else if window.is_key_pressed(Key::Key2, KeyRepeat::No) || window.is_key_pressed(Key::NumPad2, KeyRepeat::No) {
                     let loaded = load_maze("./maze2.txt", BLOCK_SIZE);
                     maze = loaded.0;
-                    player = loaded.1;
+                    player = Player::new(loaded.1.pos.x, loaded.1.pos.y);
+                    enemies = spawn_enemies_from_maze(&mut maze, BLOCK_SIZE);
                     state = GameState::Playing;
                 } else if window.is_key_pressed(Key::Key3, KeyRepeat::No) || window.is_key_pressed(Key::NumPad3, KeyRepeat::No) {
                     let loaded = load_maze("./maze3.txt", BLOCK_SIZE);
                     maze = loaded.0;
-                    player = loaded.1;
+                    player = Player::new(loaded.1.pos.x, loaded.1.pos.y);
+                    enemies = spawn_enemies_from_maze(&mut maze, BLOCK_SIZE);
                     state = GameState::Playing;
                 }
 
                 render_welcome_menu(&mut framebuffer);
             }
             GameState::Playing => {
+                let dt = 0.022; // ~45 FPS
+
+                // Actualizar enemigos
+                for enemy in enemies.iter_mut() {
+                    enemy.update(&mut player, dt, &maze, BLOCK_SIZE);
+                }
+
                 // Alternar entre modo 2D y modo 3D con la tecla M
                 if window.is_key_pressed(Key::M, KeyRepeat::No) {
                     mode_3d = !mode_3d;
                 }
 
-                // Disparar el arma con clic izquierdo
+                // Disparar el arma con clic izquierdo e infligir daño a enemigos
                 if window.get_mouse_down(MouseButton::Left) {
                     weapon.shoot("./assets/gun_shot.mp3");
+                    check_player_shot_hit(&player, &mut enemies, &maze, BLOCK_SIZE);
                 }
 
                 weapon.update();
 
                 process_events(&mut window, &mut player, &maze, BLOCK_SIZE, &mut last_mouse_x);
+
+                // Si el jugador pierde toda la vida es game over
+                if player.hp <= 0 {
+                    state = GameState::GameOver;
+                }
 
                 // Verificar si se llegó a la meta
                 let i = player.pos.x as usize / BLOCK_SIZE;
@@ -403,8 +439,16 @@ fn main() {
                     framebuffer.clear();
                 }
 
-                render(&mut framebuffer, &maze, &player, mode_3d, &wall_texture, &door_texture);
-
+                render(
+                    &mut framebuffer,
+                    &maze,
+                    &player,
+                    mode_3d,
+                    &wall_texture,
+                    &door_texture,
+                    &enemies,
+                    enemy_texture.as_ref(),
+                );
 
                 // Dibujar el arma y la retícula de mira en 3D
                 if mode_3d {
@@ -412,9 +456,19 @@ fn main() {
                     render_crosshair(&mut framebuffer);
                 }
 
+                // HUD de Salud del Jugador en la esquina inferior derecha
+                let hp_ratio = player.hp as f32 / player.max_hp as f32;
+                let hp_bar_w = 220;
+                let fill_w = (hp_bar_w as f32 * hp_ratio) as usize;
+                let hp_color = if hp_ratio > 0.5 { 0x00FF88 } else if hp_ratio > 0.25 { 0xFFFF00 } else { 0xFF2222 };
 
+                let hud_x = framebuffer.width.saturating_sub(hp_bar_w + 20);
+                let hud_y = framebuffer.height.saturating_sub(44);
 
-
+                framebuffer.draw_rect(hud_x, hud_y, hp_bar_w, 24, 0x221111);
+                framebuffer.draw_rect(hud_x, hud_y, fill_w, 24, hp_color);
+                let hp_str = format!("SALUD: {}%", player.hp);
+                framebuffer.draw_text(hud_x + 10, hud_y + 5, &hp_str, 0xFFFFFF);
 
 
                 // Mostrar recuadro e información de FPS directamente sobre el juego
@@ -429,7 +483,15 @@ fn main() {
 
                 render_victory_screen(&mut framebuffer);
             }
+            GameState::GameOver => {
+                if window.is_key_pressed(Key::Enter, KeyRepeat::No) || window.is_key_pressed(Key::Space, KeyRepeat::No) {
+                    state = GameState::WelcomeMenu;
+                }
+
+                render_game_over_screen(&mut framebuffer);
+            }
         }
+
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)

@@ -2,6 +2,7 @@ mod caster;
 mod framebuffer;
 mod maze;
 mod player;
+mod texture;
 
 use minifb::{Key, KeyRepeat, Window, WindowOptions};
 use std::f32::consts::PI;
@@ -11,6 +12,8 @@ use crate::caster::{cast_ray, cast_ray_2d};
 use crate::framebuffer::Framebuffer;
 use crate::maze::{load_maze, Maze};
 use crate::player::{process_events, Player};
+use crate::texture::Texture;
+
 
 const BLOCK_SIZE: usize = 100;
 
@@ -99,7 +102,13 @@ fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
     framebuffer.point(vx, vy);
 }
 
-fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: bool) {
+fn render(
+    framebuffer: &mut Framebuffer,
+    maze: &Maze,
+    player: &Player,
+    mode_3d: bool,
+    wall_texture: &Texture,
+) {
     if mode_3d {
         let width = framebuffer.width as f32;
         // Distancia exacta al plano de proyección para un campo de visión plano (sin deformaciones)
@@ -111,12 +120,23 @@ fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: 
             let beta = (screen_x / d_plane).atan();
             let angle = player.a + beta;
 
-            cast_ray(framebuffer, maze, player, angle, beta, BLOCK_SIZE, i, d_plane);
+            cast_ray(
+                framebuffer,
+                maze,
+                player,
+                angle,
+                beta,
+                BLOCK_SIZE,
+                i,
+                d_plane,
+                wall_texture,
+            );
         }
 
         // Minimapa en la esquina superior derecha
         render_minimap(framebuffer, maze, player);
     } else {
+
 
         // Vista 2D escalada automáticamente para encajar todo el laberinto en pantalla
         let cols = maze[0].len();
@@ -202,6 +222,11 @@ fn main() {
     )
     .unwrap();
 
+    let wall_texture = Texture::load("./assets/wall.png").unwrap_or_else(|e| {
+        eprintln!("Aviso: {}", e);
+        Texture { width: 1, height: 1, pixels: vec![0xFF5555] }
+    });
+
     let mut state = GameState::WelcomeMenu;
     let mut mode_3d = true;
     let mut last_fps_update = Instant::now();
@@ -271,7 +296,8 @@ fn main() {
                     framebuffer.clear();
                 }
 
-                render(&mut framebuffer, &maze, &player, mode_3d);
+                render(&mut framebuffer, &maze, &player, mode_3d, &wall_texture);
+
 
                 // Mostrar recuadro e información de FPS directamente sobre el juego
                 framebuffer.draw_rect(10, 10, 130, 24, 0x11111E);

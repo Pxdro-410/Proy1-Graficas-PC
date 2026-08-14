@@ -51,8 +51,8 @@ pub fn process_events(
 
 ) {
     const MOVE_SPEED: f32 = 7.0;
-    const ROTATION_SPEED: f32 = PI / 25.0;
     const PLAYER_RADIUS: f32 = 15.0;
+
 
 
     #[cfg(target_os = "windows")]
@@ -70,30 +70,35 @@ pub fn process_events(
     }
 
 
-    // Rotación con teclado (A / D)
-    if window.is_key_down(Key::A) {
-        player.a -= ROTATION_SPEED;
-    }
-
-    if window.is_key_down(Key::D) {
-        player.a += ROTATION_SPEED;
-    }
-
-
-
-
     let mut dx = 0.0;
     let mut dy = 0.0;
 
+    // Avanzar (W)
     if window.is_key_down(Key::W) {
         dx += MOVE_SPEED * player.a.cos();
         dy += MOVE_SPEED * player.a.sin();
     }
 
+    // Retroceder (S)
     if window.is_key_down(Key::S) {
         dx -= MOVE_SPEED * player.a.cos();
         dy -= MOVE_SPEED * player.a.sin();
     }
+
+    // Moverse a la izquierda / Strafe Left (A)
+    if window.is_key_down(Key::A) {
+        let left_angle = player.a - PI / 2.0;
+        dx += MOVE_SPEED * left_angle.cos();
+        dy += MOVE_SPEED * left_angle.sin();
+    }
+
+    // Moverse a la derecha / Strafe Right (D)
+    if window.is_key_down(Key::D) {
+        let right_angle = player.a + PI / 2.0;
+        dx += MOVE_SPEED * right_angle.cos();
+        dy += MOVE_SPEED * right_angle.sin();
+    }
+
 
     // Verificar colisión en el eje X
     if dx != 0.0 {

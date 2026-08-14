@@ -43,8 +43,10 @@ pub fn cast_ray(
     maze: &Maze,
     player: &Player,
     a: f32,
+    beta: f32,
     block_size: usize,
     i: usize,
+    d_plane: f32,
 ) {
     let mut d = 0.0;
 
@@ -65,11 +67,10 @@ pub fn cast_ray(
             // Color obtenido desde la función cell_color en main.rs
             let color = cell_color(cell);
 
-            // Corrección de fish-eye
-            let distance = d * (a - player.a).cos();
+            // Corrección de ojo de pez exacta usando el coseno del ángulo relativo a la cámara
+            let distance = (d * beta.cos()).max(0.1);
 
             // Altura de la pared en 3D
-            let d_plane = 500.0;
             let wall_height = (block_size as f32 / distance) * d_plane;
 
             let h = framebuffer.height as f32;
@@ -87,4 +88,5 @@ pub fn cast_ray(
         d += 1.0;
     }
 }
+
 

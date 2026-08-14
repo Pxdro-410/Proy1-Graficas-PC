@@ -101,16 +101,23 @@ fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
 
 fn render(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, mode_3d: bool) {
     if mode_3d {
+        let width = framebuffer.width as f32;
+        // Distancia exacta al plano de proyección para un campo de visión plano (sin deformaciones)
+        let d_plane = (width / 2.0) / (FOV / 2.0).tan();
+
         // Vista 3D mediante Raycasting (1 rayo por cada columna de pantalla)
         for i in 0..NUM_RAYS {
-            let ray_fraction = i as f32 / (NUM_RAYS - 1) as f32; // de 0.0 a 1.0
-            let angle = player.a - FOV / 2.0 + FOV * ray_fraction;
-            cast_ray(framebuffer, maze, player, angle, BLOCK_SIZE, i);
+            let screen_x = i as f32 - width / 2.0;
+            let beta = (screen_x / d_plane).atan();
+            let angle = player.a + beta;
+
+            cast_ray(framebuffer, maze, player, angle, beta, BLOCK_SIZE, i, d_plane);
         }
 
         // Minimapa en la esquina superior derecha
         render_minimap(framebuffer, maze, player);
     } else {
+
         // Vista 2D escalada automáticamente para encajar todo el laberinto en pantalla
         let cols = maze[0].len();
         let rows = maze.len();

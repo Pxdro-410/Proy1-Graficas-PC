@@ -43,6 +43,7 @@ fn draw_cell_2d(
     cell: char,
     size: usize,
     wall_texture: &Texture,
+    door_texture: &Texture,
 ) {
     let floor_color = 0x1B3B22; // Color de grama nocturna del piso en 3D
 
@@ -57,25 +58,21 @@ fn draw_cell_2d(
         return;
     }
 
-    if cell == 'g' || cell == 'G' {
-        // Meta verde brillante
-        for x in xo..(xo + size).min(framebuffer.width) {
-            for y in yo..(yo + size).min(framebuffer.height) {
-                framebuffer.set_current_color(0x00FF88);
-                framebuffer.point(x, y);
-            }
-        }
-        return;
-    }
+    // 'g' o 'G' usa door_texture, el resto usa wall_texture
+    let tex = if cell == 'g' || cell == 'G' {
+        door_texture
+    } else {
+        wall_texture
+    };
 
-    // Paredes del mapa en 2D renderizadas con la textura PNG real
+    // Paredes y puerta del mapa en 2D renderizadas con la textura PNG real
     for x in 0..size {
         let screen_x = xo + x;
         if screen_x >= framebuffer.width {
             continue;
         }
 
-        let tx = ((x as f32 / size as f32) * wall_texture.width as f32) as u32;
+        let tx = ((x as f32 / size as f32) * tex.width as f32) as u32;
 
         for y in 0..size {
             let screen_y = yo + y;
@@ -83,14 +80,15 @@ fn draw_cell_2d(
                 continue;
             }
 
-            let ty = ((y as f32 / size as f32) * wall_texture.height as f32) as u32;
-            let color = wall_texture.get_pixel(tx, ty);
+            let ty = ((y as f32 / size as f32) * tex.height as f32) as u32;
+            let color = tex.get_pixel(tx, ty);
 
             framebuffer.set_current_color(color);
             framebuffer.point(screen_x, screen_y);
         }
     }
 }
+
 
 
 fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
@@ -154,6 +152,7 @@ fn render(
     player: &Player,
     mode_3d: bool,
     wall_texture: &Texture,
+    door_texture: &Texture,
 ) {
     if mode_3d {
         let width = framebuffer.width as f32;
@@ -176,6 +175,7 @@ fn render(
                 i,
                 d_plane,
                 wall_texture,
+                door_texture,
             );
         }
 
@@ -199,9 +199,11 @@ fn render(
                     cell,
                     cell_size_2d,
                     wall_texture,
+                    door_texture,
                 );
             }
         }
+
 
 
         // Jugador en vista 2D
@@ -312,7 +314,15 @@ fn main() {
             height: 1,
             pixels: vec![0xFF5555],
         }
+    });
 
+    let door_texture = Texture::load("./assets/door.png").unwrap_or_else(|e| {
+        eprintln!("Aviso: {}", e);
+        Texture {
+            width: 1,
+            height: 1,
+            pixels: vec![0x00FF88],
+        }
     });
 
     let mut weapon = Weapon::new();
@@ -393,7 +403,8 @@ fn main() {
                     framebuffer.clear();
                 }
 
-                render(&mut framebuffer, &maze, &player, mode_3d, &wall_texture);
+                render(&mut framebuffer, &maze, &player, mode_3d, &wall_texture, &door_texture);
+
 
                 // Dibujar el arma y la retícula de mira en 3D
                 if mode_3d {

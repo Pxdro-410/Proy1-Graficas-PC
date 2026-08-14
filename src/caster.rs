@@ -1,8 +1,8 @@
-use crate::cell_color;
 use crate::framebuffer::Framebuffer;
 use crate::maze::Maze;
 use crate::player::Player;
 use crate::texture::Texture;
+
 
 pub fn cast_ray_2d(
     framebuffer: &mut Framebuffer,
@@ -48,7 +48,8 @@ pub fn cast_ray(
     block_size: usize,
     i: usize,
     d_plane: f32,
-    texture: &Texture,
+    wall_texture: &Texture,
+    door_texture: &Texture,
 ) {
     let mut d = 0.0;
 
@@ -77,15 +78,12 @@ pub fn cast_ray(
             let draw_start = (draw_start_f.max(0.0)) as usize;
             let draw_end = (((h / 2.0) + (wall_height / 2.0)).min(h)) as usize;
 
-            // meta con color brillante
-            if cell == 'g' || cell == 'G' {
-                let color = cell_color(cell);
-                framebuffer.set_current_color(color);
-                for y_pix in draw_start..draw_end {
-                    framebuffer.point(i, y_pix);
-                }
-                return;
-            }
+            // Seleccionar textura: 'g' o 'G' usa door_texture, el resto usa wall_texture
+            let tex = if cell == 'g' || cell == 'G' {
+                door_texture
+            } else {
+                wall_texture
+            };
 
             // Mapeo de coordenada X de textura (tx)
             let hit_x_cell = world_x % block_size as f32;
@@ -97,14 +95,14 @@ pub fn cast_ray(
                 hit_x_cell
             };
 
-            let tx = ((hit_offset / block_size as f32) * texture.width as f32) as u32;
+            let tx = ((hit_offset / block_size as f32) * tex.width as f32) as u32;
 
-            // Renderizado de la pared proyectando la textura PNG
+            // Renderizado de la pared o puerta proyectando la textura PNG correspondiente
             for y_pix in draw_start..draw_end {
                 let ty_norm = (y_pix as f32 - draw_start_f) / wall_height;
-                let ty = (ty_norm * texture.height as f32) as u32;
+                let ty = (ty_norm * tex.height as f32) as u32;
 
-                let color = texture.get_pixel(tx, ty);
+                let color = tex.get_pixel(tx, ty);
                 framebuffer.set_current_color(color);
                 framebuffer.point(i, y_pix);
             }
@@ -114,6 +112,7 @@ pub fn cast_ray(
         d += 1.0;
     }
 }
+
 
 
 

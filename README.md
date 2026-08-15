@@ -3,6 +3,8 @@
 Proyecto 1 - Graficas por computadora
 Estudiante: Pedro Caso - 241286  
 
+### Requisitos cumplidos 125/200 pts esperados.
+
 ---
 
 ## Descripción del Proyecto

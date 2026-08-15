@@ -79,13 +79,17 @@ impl Weapon {
     }
 
 
-    pub fn shoot(&mut self, sound_path: &str) {
+    pub fn shoot(&mut self, sound_path: &str) -> bool {
         if !self.is_firing {
             self.is_firing = true;
             self.fire_frame = 0;
             self.sound_system.play_sound(sound_path);
+            true
+        } else {
+            false
         }
     }
+
 
     pub fn update(&mut self) {
         if self.is_firing {

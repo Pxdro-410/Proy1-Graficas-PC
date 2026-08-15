@@ -139,13 +139,13 @@ pub fn check_player_shot_hit(player: &Player, enemies: &mut [Enemy], maze: &Maze
                 let edx = rx - enemy.pos.x;
                 let edy = ry - enemy.pos.y;
                 if (edx * edx + edy * edy) < 35.0 * 35.0 {
-                    enemy.hp -= 24; // 24 de daño por disparo
+                    enemy.hp -= 25; // 25 de daño -> exactamente 4 disparos requeridos para eliminar los 100 HP (25 * 4 = 100)
                     enemy.hit_flash_timer = 0.18;
                     if enemy.hp <= 0 {
                         enemy.hp = 0;
                         enemy.is_alive = false;
                     }
-                    return true; // Un solo impacto por cada bala
+                    return true; // Un solo impacto por cada disparo
                 }
             }
         }
@@ -153,7 +153,7 @@ pub fn check_player_shot_hit(player: &Player, enemies: &mut [Enemy], maze: &Maze
     false
 }
 
-/// Renderizado de enemigos en 3D con escalado proporcional
+/// Renderizado de enemigos en 3D con escalado proporcional y control de oclusión por Z-Buffer
 pub fn render_enemies(
     framebuffer: &mut Framebuffer,
     enemies: &[Enemy],
@@ -183,20 +183,15 @@ pub fn render_enemies(
         while norm_angle > std::f32::consts::PI { norm_angle -= 2.0 * std::f32::consts::PI; }
         while norm_angle < -std::f32::consts::PI { norm_angle += 2.0 * std::f32::consts::PI; }
 
-        let raw_dist = (dx * dx + dy * dy).sqrt() * norm_angle.cos();
-        if raw_dist < 15.0 {
+        let distance = (dx * dx + dy * dy).sqrt() * norm_angle.cos();
+        if distance < 12.0 {
             continue;
         }
 
-        let distance = raw_dist.max(25.0);
-
         let screen_x_center = (framebuffer.width as f32 / 2.0) + (norm_angle.tan() * d_plane);
         
-        // Limitar el tamaño al 65% para evitar gigantismo
-        let raw_sprite_size = (65.0 / distance) * d_plane;
-        let max_sprite_size = framebuffer.height as f32 * 0.70;
-        let sprite_size = raw_sprite_size.min(max_sprite_size);
-
+        // Escalar tamaño a proporción adecuada de 65%
+        let sprite_size = (65.0 / distance) * d_plane;
         let sprite_w = sprite_size as usize;
         let sprite_h = sprite_size as usize;
 
@@ -256,17 +251,22 @@ pub fn render_enemies(
             }
         }
 
-        // Barra de salud en 3D sobre el enemigo
-        let hp_bar_w = sprite_w.min(50);
-        let hp_bar_x = (screen_x_center - hp_bar_w as f32 / 2.0) as isize;
-        let hp_bar_y = start_y - 12;
+        // Barra de salud en 3D sobre el enemigo (ocultar si está detrás de una pared según el Z-Buffer)
+        let center_col = (screen_x_center as isize).clamp(0, framebuffer.width as isize - 1) as usize;
+        let wall_dist = z_buffer.get(center_col).copied().unwrap_or(0.0);
 
-        if hp_bar_y > 0 && hp_bar_x > 0 && (hp_bar_x + hp_bar_w as isize) < framebuffer.width as isize {
-            let hp_ratio = enemy.hp as f32 / enemy.max_hp as f32;
-            let fill_w = (hp_bar_w as f32 * hp_ratio) as usize;
+        if distance < wall_dist {
+            let hp_bar_w = sprite_w.min(50);
+            let hp_bar_x = (screen_x_center - hp_bar_w as f32 / 2.0) as isize;
+            let hp_bar_y = start_y - 12;
 
-            framebuffer.draw_rect(hp_bar_x as usize, hp_bar_y as usize, hp_bar_w, 5, 0x330000);
-            framebuffer.draw_rect(hp_bar_x as usize, hp_bar_y as usize, fill_w, 5, 0xFF2222);
+            if hp_bar_y > 0 && hp_bar_x > 0 && (hp_bar_x + hp_bar_w as isize) < framebuffer.width as isize {
+                let hp_ratio = enemy.hp as f32 / enemy.max_hp as f32;
+                let fill_w = (hp_bar_w as f32 * hp_ratio) as usize;
+
+                framebuffer.draw_rect(hp_bar_x as usize, hp_bar_y as usize, hp_bar_w, 5, 0x330000);
+                framebuffer.draw_rect(hp_bar_x as usize, hp_bar_y as usize, fill_w, 5, 0xFF2222);
+            }
         }
     }
 }

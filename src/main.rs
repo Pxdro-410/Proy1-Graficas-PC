@@ -93,7 +93,7 @@ fn draw_cell_2d(
     }
 }
 
-fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
+fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, enemies: &[Enemy]) {
     let cols = maze[0].len();
     let rows = maze.len();
 
@@ -134,8 +134,18 @@ fn render_minimap(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player) {
         }
     }
 
-    // se dibuja el jugador en el minimapa
     let scale = cell_size as f32 / BLOCK_SIZE as f32;
+
+    // Dibujar enemigos vivos en el minimapa como puntos rojos
+    for enemy in enemies {
+        if enemy.is_alive {
+            let ex = offset_x + (enemy.pos.x * scale) as usize;
+            let ey = offset_y + (enemy.pos.y * scale) as usize;
+            framebuffer.draw_rect(ex.saturating_sub(2), ey.saturating_sub(2), 5, 5, 0xFF2222);
+        }
+    }
+
+    // se dibuja el jugador en el minimapa
     let px = offset_x + (player.pos.x * scale) as usize;
     let py = offset_y + (player.pos.y * scale) as usize;
 
@@ -189,7 +199,7 @@ fn render(
         render_enemies(framebuffer, enemies, player, d_plane, &z_buffer, enemy_texture);
 
         // Minimapa en la esquina superior derecha
-        render_minimap(framebuffer, maze, player);
+        render_minimap(framebuffer, maze, player, enemies);
     } else {
         // Vista 2D escalada automáticamente para encajar todo el laberinto en pantalla
         let cols = maze[0].len();
@@ -211,6 +221,41 @@ fn render(
             }
         }
 
+        // Dibujar enemigos en la vista 2D utilizando la textura real PNG (enemies.png)
+        for enemy in enemies {
+            if enemy.is_alive {
+                let ex = (enemy.pos.x * scale_2d) as usize;
+                let ey = (enemy.pos.y * scale_2d) as usize;
+
+                let sprite_size_2d = (cell_size_2d as f32 * 0.75).max(10.0) as usize;
+                let start_x = ex.saturating_sub(sprite_size_2d / 2);
+                let start_y = ey.saturating_sub(sprite_size_2d / 2);
+
+                if let Some(tex) = enemy_texture {
+                    for x in 0..sprite_size_2d {
+                        let sx = start_x + x;
+                        if sx >= framebuffer.width { continue; }
+                        let tx = ((x as f32 / sprite_size_2d as f32) * tex.width as f32) as u32;
+
+                        for y in 0..sprite_size_2d {
+                            let sy = start_y + y;
+                            if sy >= framebuffer.height { continue; }
+                            let ty = ((y as f32 / sprite_size_2d as f32) * tex.height as f32) as u32;
+
+                            if tex.is_pixel_visible(tx, ty) {
+                                let color = tex.get_pixel(tx, ty);
+                                framebuffer.set_current_color(color);
+                                framebuffer.point(sx, sy);
+                            }
+                        }
+                    }
+                } else {
+                    framebuffer.draw_rect(ex.saturating_sub(4), ey.saturating_sub(4), 9, 9, 0xFF2222);
+                }
+            }
+        }
+
+
         // Jugador en vista 2D
         framebuffer.set_current_color(0xFFFF00);
         let px = (player.pos.x * scale_2d) as usize;
@@ -230,6 +275,7 @@ fn render(
         }
     }
 }
+
 
 #[derive(PartialEq)]
 enum GameState {
@@ -457,11 +503,13 @@ fn main() {
                     mode_3d = !mode_3d;
                 }
 
-                // Disparar el arma con clic izquierdo e infligir daño a enemigos
+                // Disparar el arma con clic izquierdo e infligir daño a enemigos solo al iniciar cada disparo
                 if window.get_mouse_down(MouseButton::Left) {
-                    weapon.shoot("./assets/gun_shot.mp3");
-                    check_player_shot_hit(&player, &mut enemies, &maze, BLOCK_SIZE);
+                    if weapon.shoot("./assets/gun_shot.mp3") {
+                        check_player_shot_hit(&player, &mut enemies, &maze, BLOCK_SIZE);
+                    }
                 }
+
 
                 weapon.update();
 

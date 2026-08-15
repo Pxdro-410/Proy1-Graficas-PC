@@ -240,21 +240,32 @@ enum GameState {
 }
 
 fn render_welcome_menu(framebuffer: &mut Framebuffer) {
-    framebuffer.clear_sky_and_floor(0x0B0F26, 0x11111E);
+    // Fondo de noche limpia sobria
+    framebuffer.clear_full_screen(0x0A0B10);
 
-    let center_x = framebuffer.width / 2;
+    // Título Principal estilo
+    framebuffer.draw_text_centered_shadow(50, "BACKROOMS ESCAPE", 6, 0xFFFFFF, 0x555555);
+    framebuffer.draw_text_centered_shadow(145, "Pedro Caso 241286", 2, 0xCCCCCC, 0x333333);
 
-    // Título Principal
-    framebuffer.draw_text_scaled(center_x.saturating_sub(220), 100, "RAYCASTING - PC", 4, 0x00FFFF);
-    framebuffer.draw_text_scaled(center_x.saturating_sub(180), 200, "SELECCIONA UN NIVEL", 3, 0xFFD700);
 
-    // Opciones de nivel
-    framebuffer.draw_text_scaled(center_x.saturating_sub(160), 300, "1 - Elegir nivel 1", 3, 0xFFFFFF);
-    framebuffer.draw_text_scaled(center_x.saturating_sub(160), 370, "2 - Elegir nivel 2", 3, 0xFFFFFF);
-    framebuffer.draw_text_scaled(center_x.saturating_sub(160), 440, "3 - Elegir nivel 3", 3, 0xFFFFFF);
+    // Tarjeta central metálica sobria
+    let card_w = 660;
+    let card_h = 310;
+    let card_x = (framebuffer.width - card_w) / 2;
+    let card_y = 205;
 
-    // Instrucción de inicio
-    framebuffer.draw_text_scaled(center_x.saturating_sub(200), 550, "PRESIONA 1, 2 O 3 PARA JUGAR", 2, 0x00FF88);
+    framebuffer.draw_rect(card_x - 3, card_y - 3, card_w + 6, card_h + 6, 0x555566);
+    framebuffer.draw_rect(card_x, card_y, card_w, card_h, 0x141620);
+
+    framebuffer.draw_text_centered(230, "SELECCIONA UN NIVEL", 3, 0xFFD700);
+
+    // Opciones del menú de color Amarillo brillante
+    framebuffer.draw_text_centered(295, "[ 1 ] - LABERINTO I", 3, 0xFFD700);
+    framebuffer.draw_text_centered(360, "[ 2 ] - LABERINTO II", 3, 0xFFD700);
+    framebuffer.draw_text_centered(425, "[ 3 ] - LABERINTO III", 3, 0xFFD700);
+
+    // Instrucción de inicio en amarillo
+    framebuffer.draw_text_centered_shadow(565, "PRESIONA [1] [2] o [3] PARA INICIAR LA PARTIDA", 2, 0xFFD700, 0x333300);
 }
 
 fn render_crosshair(framebuffer: &mut Framebuffer) {
@@ -286,22 +297,57 @@ fn render_crosshair(framebuffer: &mut Framebuffer) {
 }
 
 fn render_victory_screen(framebuffer: &mut Framebuffer) {
-    framebuffer.clear_sky_and_floor(0x0B0F26, 0x11111E);
+    // Fondo de noche limpia
+    framebuffer.clear_full_screen(0x09140E);
 
-    let center_x = framebuffer.width / 2;
-    framebuffer.draw_text_scaled(center_x.saturating_sub(210), 160, "FELICITACIONES!", 4, 0x00FF88);
-    framebuffer.draw_text_scaled(center_x.saturating_sub(210), 260, "META ALCANZADA!", 4, 0xFFD700);
+    // Título 
+    framebuffer.draw_text_centered_shadow(70, "PASASTE EL NIVEL", 6, 0xFFFFFF, 0x555555);
+    framebuffer.draw_text_centered_shadow(155, "META ALCANZADA CON EXITO", 3, 0xFFD700, 0x333300);
 
-    framebuffer.draw_text_scaled(center_x.saturating_sub(260), 450, "PRESIONA ENTER PARA VOLVER AL MENU", 2, 0xFFFFFF);
+    // Tarjeta central sobria
+    let card_w = 700;
+    let card_h = 240;
+    let card_x = (framebuffer.width - card_w) / 2;
+    let card_y = 230;
+
+    framebuffer.draw_rect(card_x - 3, card_y - 3, card_w + 6, card_h + 6, 0x555566);
+    framebuffer.draw_rect(card_x, card_y, card_w, card_h, 0x141620);
+
+    // Opciones e información en color amarillo
+    framebuffer.draw_text_centered(280, "SOBREVIVISTE AL LABERINTO", 3, 0xFFD700);
+    framebuffer.draw_text_centered(350, "TODOS LOS ENEMIGOS FUERON EVADIDOS", 2, 0xFFD700);
+
+    // Instrucción en amarillo
+    framebuffer.draw_text_centered_shadow(560, "PRESIONA ENTER O ESPACIO PARA VOLVER AL MENU", 2, 0xFFD700, 0x333300);
 }
 
 fn render_game_over_screen(framebuffer: &mut Framebuffer) {
-    framebuffer.clear_sky_and_floor(0x200505, 0x050000);
+    // Fondo de noche limpia
+    framebuffer.clear_full_screen(0x140909);
 
-    let center_x = framebuffer.width / 2;
-    framebuffer.draw_text_scaled(center_x.saturating_sub(160), 180, "HAS MUERTO!", 4, 0xFF2222);
-    framebuffer.draw_text_scaled(center_x.saturating_sub(260), 420, "PRESIONA ENTER PARA VOLVER AL MENU", 2, 0xFFFFFF);
+    // Título 
+    framebuffer.draw_text_centered_shadow(70, "¡HAS MUERTO!", 6, 0xFFFFFF, 0x555555);
+
+    framebuffer.draw_text_centered_shadow(155, "TE QUEDASTE SIN SALUD", 3, 0xFFD700, 0x333300);
+
+    // Tarjeta central sobria
+    let card_w = 700;
+    let card_h = 240;
+    let card_x = (framebuffer.width - card_w) / 2;
+    let card_y = 230;
+
+    framebuffer.draw_rect(card_x - 3, card_y - 3, card_w + 6, card_h + 6, 0x555566);
+    framebuffer.draw_rect(card_x, card_y, card_w, card_h, 0x141620);
+
+    // Opciones e información en color amarillo
+    framebuffer.draw_text_centered(280, "LOS ENEMIGOS TE HAN DERROTADO", 3, 0xFFD700);
+    framebuffer.draw_text_centered(350, "INTENTALO DE NUEVO", 2, 0xFFD700);
+
+    // Instrucción en amarillo
+    framebuffer.draw_text_centered_shadow(560, "PRESIONA ENTER O ESPACIO PARA REINTENTAR", 2, 0xFFD700, 0x333300);
 }
+
+
 
 fn main() {
     let window_width = 1200;

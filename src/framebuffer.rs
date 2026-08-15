@@ -63,6 +63,21 @@ impl Framebuffer {
         }
     }
 
+    pub fn clear_full_screen(&mut self, bg_color: u32) {
+        for pixel in self.buffer.iter_mut() {
+            *pixel = bg_color;
+        }
+
+        // Pintar estrellas distribuidas en toda la pantalla para los menús
+        for &(x, y, color) in &self.stars {
+            let full_y = (y * 2) % self.height;
+            if full_y < self.height && x < self.width {
+                self.buffer[full_y * self.width + x] = color;
+            }
+        }
+    }
+
+
 
 
     pub fn point(&mut self, x: usize, y: usize) {
@@ -148,6 +163,29 @@ impl Framebuffer {
     pub fn draw_text(&mut self, x_orig: usize, y_orig: usize, text: &str, color: u32) {
         self.draw_text_scaled(x_orig, y_orig, text, 2, color);
     }
+
+    pub fn draw_text_centered(&mut self, y_orig: usize, text: &str, scale: usize, color: u32) {
+        let text_width = text.len() * 6 * scale;
+        let x_orig = self.width.saturating_sub(text_width) / 2;
+        self.draw_text_scaled(x_orig, y_orig, text, scale, color);
+    }
+
+    pub fn draw_text_centered_shadow(&mut self, y_orig: usize, text: &str, scale: usize, color: u32, shadow_color: u32) {
+        let text_width = text.len() * 6 * scale;
+        let x_orig = self.width.saturating_sub(text_width) / 2;
+        let off = (scale / 2).max(3);
+
+        // Sombra proyectada 
+        self.draw_text_scaled(x_orig + off, y_orig + off, text, scale, shadow_color);
+        self.draw_text_scaled(x_orig + off - 1, y_orig + off, text, scale, shadow_color);
+        self.draw_text_scaled(x_orig + off, y_orig + off - 1, text, scale, shadow_color);
+        self.draw_text_scaled(x_orig + off + 1, y_orig + off + 1, text, scale, 0x222222);
+
+        // Texto frontal principal
+        self.draw_text_scaled(x_orig, y_orig, text, scale, color);
+    }
+
+
 
 
     pub fn set_background_color(&mut self, color: u32) {

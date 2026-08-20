@@ -65,26 +65,35 @@ pub fn process_events(
     maze: &Maze,
     enemies: &[Enemy],
     block_size: usize,
-    _last_mouse_x: &mut Option<f32>,
+    last_mouse_x: &mut Option<f32>,
 ) {
     const MOVE_SPEED: f32 = 7.0;
     const PLAYER_RADIUS: f32 = 15.0;
     const ENEMY_COLLISION_RADIUS: f32 = 38.0;
 
     #[cfg(target_os = "windows")]
+    let _ = last_mouse_x;
+
+
+
+    #[cfg(target_os = "windows")]
     process_mouse_rotation(window, player);
 
     #[cfg(not(target_os = "windows"))]
-    if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Pass) {
-        if let Some(prev_x) = *last_mouse_x {
-            let delta_x = mouse_x - prev_x;
-            const MOUSE_SENSITIVITY: f32 = 0.00055;
-            player.a += delta_x * MOUSE_SENSITIVITY;
+    {
+        const MOUSE_SENSITIVITY: f32 = 0.00055;
+        if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Pass) {
+            if let Some(prev_x) = *last_mouse_x {
+                let delta_x = mouse_x - prev_x;
+                player.a += delta_x * MOUSE_SENSITIVITY;
+            }
+            *last_mouse_x = Some(mouse_x);
+        } else {
+            *last_mouse_x = None;
         }
-        *last_mouse_x = Some(mouse_x);
-    } else {
-        *last_mouse_x = None;
     }
+
+
 
     let mut dx = 0.0;
     let mut dy = 0.0;

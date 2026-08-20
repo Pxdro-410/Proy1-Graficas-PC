@@ -71,9 +71,9 @@ impl Enemy {
 
         let has_los = self.has_line_of_sight(player, maze, block_size);
 
-        // Persecución fluida con deslizamiento en paredes cuando el jugador está a la vista
-        if has_los && dist < 550.0 && dist > 45.0 {
-            let move_speed = 65.0 * dt;
+        // Persecución con deslizamiento en paredes cuando el jugador está a la vista
+        if has_los && dist < 650.0 && dist > 53.0 {
+            let move_speed = 125.0 * dt; 
             let target_x = self.pos.x + (dx / dist) * move_speed;
             let target_y = self.pos.y + (dy / dist) * move_speed;
 
@@ -92,11 +92,12 @@ impl Enemy {
             }
         }
 
-        // Ataque al jugador cuando tiene línea de visión y está cerca
-        if has_los && dist < 320.0 && self.attack_cooldown <= 0.0 {
+        // Ataque al jugador solo cuando está a corta distancia
+        if has_los && dist < 95.0 && self.attack_cooldown <= 0.0 {
             player.take_damage(20); // Quita un 20% de la vida del jugador
             self.attack_cooldown = 2.0; // Cooldown de 2.0 segundos entre ataques
         }
+
     }
 }
 
@@ -139,7 +140,7 @@ pub fn check_player_shot_hit(player: &Player, enemies: &mut [Enemy], maze: &Maze
                 let edx = rx - enemy.pos.x;
                 let edy = ry - enemy.pos.y;
                 if (edx * edx + edy * edy) < 35.0 * 35.0 {
-                    enemy.hp -= 25; // 25 de daño -> exactamente 4 disparos requeridos para eliminar los 100 HP (25 * 4 = 100)
+                    enemy.hp -= 25; // 25 de daño
                     enemy.hit_flash_timer = 0.18;
                     if enemy.hp <= 0 {
                         enemy.hp = 0;

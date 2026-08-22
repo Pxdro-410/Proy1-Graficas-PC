@@ -406,7 +406,7 @@ fn main() {
     framebuffer.set_background_color(0x333355);
 
     let mut window = Window::new(
-        "Maze Runner 3D",
+        "Backrooms - PC",
         window_width,
         window_height,
         WindowOptions::default(),

@@ -29,7 +29,7 @@ impl Player {
 }
 
 #[cfg(target_os = "windows")]
-fn process_mouse_rotation(window: &Window, player: &mut Player) {
+fn process_mouse_rotation(window: &Window, player: &mut Player, _last_mouse_x: &mut Option<f32>) {
     use winapi::shared::windef::RECT;
     use winapi::um::winuser::{GetForegroundWindow, GetWindowRect, SetCursorPos, ShowCursor};
 
@@ -59,6 +59,76 @@ fn process_mouse_rotation(window: &Window, player: &mut Player) {
     }
 }
 
+#[cfg(target_os = "macos")]
+mod macos_cg {
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct CGPoint {
+        pub x: f64,
+        pub y: f64,
+    }
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        pub fn CGWarpMouseCursorPosition(new_cursor_position: CGPoint) -> i32;
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn process_mouse_rotation(window: &Window, player: &mut Player, last_mouse_x: &mut Option<f32>) {
+    const MOUSE_SENSITIVITY: f32 = 0.00055;
+    let (win_w, win_h) = window.get_size();
+    let win_center_x = win_w as f32 / 2.0;
+    let win_center_y = win_h as f32 / 2.0;
+
+    if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Clamp) {
+        if let Some(prev_x) = *last_mouse_x {
+            let delta_x = mouse_x - prev_x;
+            player.a += delta_x * MOUSE_SENSITIVITY;
+        } else {
+            let delta_x = mouse_x - win_center_x;
+            player.a += delta_x * MOUSE_SENSITIVITY;
+        }
+
+        // Re-centrar el cursor nativo de macOS hacia el centro de la ventana si se desplaza
+        let distance_from_center = (mouse_x - win_center_x).abs();
+        if distance_from_center > 30.0 {
+            let center_pt = macos_cg::CGPoint {
+                x: win_center_x as f64,
+                y: win_center_y as f64,
+            };
+            unsafe {
+                macos_cg::CGWarpMouseCursorPosition(center_pt);
+            }
+            *last_mouse_x = Some(win_center_x);
+        } else {
+            *last_mouse_x = Some(mouse_x);
+        }
+    } else {
+        *last_mouse_x = None;
+    }
+}
+
+#[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+fn process_mouse_rotation(window: &Window, player: &mut Player, last_mouse_x: &mut Option<f32>) {
+    const MOUSE_SENSITIVITY: f32 = 0.00055;
+    let win_width = window.get_size().0 as f32;
+    let win_center_x = win_width / 2.0;
+
+    if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Clamp) {
+        if let Some(prev_x) = *last_mouse_x {
+            let delta_x = mouse_x - prev_x;
+            player.a += delta_x * MOUSE_SENSITIVITY;
+        } else {
+            let delta_x = mouse_x - win_center_x;
+            player.a += delta_x * MOUSE_SENSITIVITY;
+        }
+        *last_mouse_x = Some(mouse_x);
+    } else {
+        *last_mouse_x = None;
+    }
+}
+
 pub fn process_events(
     window: &mut Window,
     player: &mut Player,
@@ -71,27 +141,7 @@ pub fn process_events(
     const PLAYER_RADIUS: f32 = 15.0;
     const ENEMY_COLLISION_RADIUS: f32 = 38.0;
 
-    #[cfg(target_os = "windows")]
-    let _ = last_mouse_x;
-
-
-
-    #[cfg(target_os = "windows")]
-    process_mouse_rotation(window, player);
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        const MOUSE_SENSITIVITY: f32 = 0.00055;
-        if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Pass) {
-            if let Some(prev_x) = *last_mouse_x {
-                let delta_x = mouse_x - prev_x;
-                player.a += delta_x * MOUSE_SENSITIVITY;
-            }
-            *last_mouse_x = Some(mouse_x);
-        } else {
-            *last_mouse_x = None;
-        }
-    }
+    process_mouse_rotation(window, player, last_mouse_x);
 
 
 

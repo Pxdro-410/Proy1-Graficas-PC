@@ -69,7 +69,7 @@ mod macos_cg {
     }
 
     #[link(name = "CoreGraphics", kind = "framework")]
-    extern "C" {
+    unsafe extern "C" {
         pub fn CGWarpMouseCursorPosition(new_cursor_position: CGPoint) -> i32;
     }
 }
@@ -117,7 +117,7 @@ mod linux_x11 {
     pub type Window = u64;
 
     #[link(name = "X11")]
-    extern "C" {
+    unsafe extern "C" {
         pub fn XOpenDisplay(display_name: *const i8) -> *mut Display;
         pub fn XCloseDisplay(display: *mut Display) -> i32;
         pub fn XDefaultRootWindow(display: *mut Display) -> Window;

@@ -12,7 +12,8 @@ Estudiante: Pedro Caso - 241286
 Backrooms Escape es un motor gráfico 2D simulado en3D desarrollado desde cero en Rust utilizando técnicas de Raycasting en modo software rendering. El proyecto simula una perspectiva tridimensional en primera persona inspirada en títulos clásicos como Wolfenstein 3D y Doom, incorporando texturizado de paredes y puertas, animaciones de armas, efectos de sonido, música de fondo en bucle, navegación por mapa 2D/minimapa y un sistema de inteligencia y combate con enemigos.
 
 ---
-![Imagen in-game](image.png)
+<img width="1497" height="876" alt="image" src="https://github.com/user-attachments/assets/12d29e1f-f32e-494b-9b98-1933e3a44467" />
+
 [Link al video de demostración](https://youtu.be/CO9UVGY_eqA?si=EsQ3Io3kZojHF0aM)
 
 ---
